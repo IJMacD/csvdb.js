@@ -1,8 +1,10 @@
+/** @typedef {{ [field: string]: string }} RowObject */
+
 export class CSVDB
 {
     /** @type {string[]} */
     #headers;
-    /** @type {{}[]} */
+    /** @type {RowObject[]} */
     #rows;
 
     /**
@@ -11,19 +13,17 @@ export class CSVDB
     constructor (csv) {
         const [ headerLine, ...restLines ] = csv.trim().split("\n");
 
-        this.#headers = headerLine.split(",");
+        this.#headers = headerLine.trim().split(",");
 
-        const rows = restLines.map(line => line.split(",").map(cell => cell.replace(/^"|"$/g,"")));
+        const rows = restLines.map(line => line.trim().split(",").map(cell => cell.replace(/^"|"$/g,"")));
 
-        this.#rows = rows.map(row => zip(this.#headers, row));
+        this.#rows = /** @type {RowObject[]} */(rows.map(row => zip(this.#headers, row)));
     }
 
     query () {
         return new CSVDBQuery(this.#rows);
     }
 }
-
-/** @typedef {{ [field: string]: string }} RowObject */
 
 class CSVDBQuery {
     #rows;
@@ -35,8 +35,18 @@ class CSVDBQuery {
     /** @type {{ [alias: string]: string|((row: RowObject) => any) }?} */
     #selection = null;
 
+    /**
+     * @param {RowObject[]} rows
+     */
     constructor (rows) {
         this.#rows = rows;
+    }
+
+    /**
+     * Substantiate rows and create a new query object from them
+     */
+    query () {
+        return new CSVDBQuery(this.toArray());
     }
 
     /**
@@ -90,19 +100,17 @@ class CSVDBQuery {
             groupedRows = [rows];
         }
 
-        if (!this.#selection) {
-            if (groupedRows) {
-                return groupedRows.map(rows => rows[0]);
-            }
-
-            return rows;
-        }
-
         if (groupedRows) {
             return groupedRows.map(rows => mapSelectionToRow(rows, this.#selection));
         }
 
         return rows.map(row => mapSelectionToRow([row], this.#selection));
+    }
+
+    *[Symbol.iterator] () {
+        for (const row of this.toArray()) {
+            yield row;
+        }
     }
 
     #hasAggregates () {
@@ -147,46 +155,57 @@ function groupRows (rows, discriminator) {
     return [...resultSet.values()];
 }
 
-const isAggregate = (/** @type {string|((row: {}) => any)} */ col) => typeof col === "string" && /^[A-Z]{3}\(.*\)$/.test(col);
+const isAggregate = (/** @type {string|((row: {}) => any)} */ col) => typeof col === "string" && /^[A-Z]{3,5}\(.*\)$/.test(col);
 
 /**
  * @param {any[]} sourceRows
- * @param {{ [alias: string]: string|((row: {}) => any) }} selection
+ * @param {{ [alias: string]: string|((row: {}) => any) }?} selection
  */
 function mapSelectionToRow (sourceRows, selection) {
     const out = {};
 
+    if (!selection) {
+        return sourceRows[0];
+    }
+
     for (const [ alias, col] of Object.entries(selection)) {
+
         if (col instanceof Function) {
             out[alias] = col(sourceRows[0]);
         }
-        else if (isAggregate(col)) {
-            const fnName = col.substring(0, 3);
-            const colName = col.substring(4, col.length - 1);
-            const values = sourceRows.map(row => row[colName]);
+        else {
+            const aggregateMatch = /^([A-Z]{3,5})\((.*)\)$/.exec(col);
+            if (aggregateMatch) {
+                const fnName = aggregateMatch[1];
+                const colName = aggregateMatch[2];
+                const values = sourceRows.map(row => row[colName]);
 
-            let value;
+                let value;
 
-            if (fnName === "SUM") {
-                value = values.reduce((total, v) => total + +v, 0);
-            }
-            else if (fnName === "AVG") {
-                value = values.reduce((total, v) => total + +v, 0) / values.length;
-            }
-            else if (fnName === "MAX") {
-                value = Math.max(...values);
-            }
-            else if (fnName === "MIN") {
-                value = Math.min(...values);
-            }
-            else if (fnName === "COUNT") {
-                value = values.length;
-            }
+                if (fnName === "SUM") {
+                    value = values.reduce((total, v) => total + +v, 0);
+                }
+                else if (fnName === "AVG") {
+                    value = values.reduce((total, v) => total + +v, 0) / values.length;
+                }
+                else if (fnName === "MAX") {
+                    value = Math.max(...values);
+                }
+                else if (fnName === "MIN") {
+                    value = Math.min(...values);
+                }
+                else if (fnName === "COUNT") {
+                    value = values.length;
+                }
+                else if (fnName === "AGG") {
+                    value = values.join();
+                }
 
-            out[alias] = value;
-        }
-        else if (sourceRows.length > 0) {
-            out[alias] = sourceRows[0][col];
+                out[alias] = value;
+            }
+            else if (sourceRows.length > 0) {
+                out[alias] = sourceRows[0][col];
+            }
         }
     }
 
