@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Demo</title>
+        <script type="module">
+            import { CSVDB } from "./csvdb.js";
+
+            fetch("./demo.csv")
+                .then(r => r.text())
+                .then(csv => {
+                    const db = new CSVDB(csv);
+
+                    const year = row => new Date(row.Date).getFullYear();
+
+                    const result = db
+                        .query()
+                        .groupBy(year)
+                        .where(row => row.From === "Deposit")
+                        .select({year,total:"SUM(Transaction)",count:"COUNT(*)",average:"AVG(Transaction)",list:"AGG(Transaction)"});
+
+                    for (const row of result) {
+                        console.log(row);
+                    }
+
+                    output(result.toArray());
+                });
+
+            function output (data) {
+                const headers = Object.keys(data[0]);
+                const headerRow = `<tr>${headers.map(h=>`<th>${h}</th>`).join("")}</tr>`;
+                const dataRows = data.map(row=>`<tr>${Object.values(row).map(c=>`<td>${c}</td>`).join("")}</tr>`).join("");
+                const html = `<table>${headerRow}${dataRows}</table>`;
+                document.getElementById("output").innerHTML = html;
+            }
+        </script>
+    </head>
+    <body>
+        <h1>Demo</h1>
+        <div id="output"></div>
+    </body>
+</html>
