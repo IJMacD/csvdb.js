@@ -138,15 +138,15 @@ class CSVDBQuery {
         }
 
         // GROUP BY
+        /** @type {Iterable<RowObject>|RowObject[][]} */
         let iterator = rows;
-        let aggregate = false;
 
         if(this.#groupBy) {
-            aggregate = true;
+            // groupRows() will materialise the rows
             iterator = groupRows(rows, this.#groupBy);
         }
         else if (this.#hasAggregates()) {
-            aggregate = true;
+            // We're going to have to materialise the rows anyway so do it now
             iterator = [[...rows]];
         }
 
@@ -154,8 +154,7 @@ class CSVDBQuery {
         let i = 1;
         for (const row of iterator) {
             /** @type {RowObject[]} */
-            // @ts-ignore
-            const rowGroup = aggregate ? row : [row];
+            const rowGroup = Array.isArray(row) ? row : [row];
 
             yield mapSelectionToRow(rowGroup, this.#selection);
 
