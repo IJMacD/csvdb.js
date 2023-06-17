@@ -1,4 +1,4 @@
-/** @typedef {{ [field: string]: string }} RowObject */
+/** @typedef {{}} RowObject */
 
 export class CSVDB
 {
@@ -15,7 +15,7 @@ export class CSVDB
 
         this.#headers = headerLine.trim().split(",");
 
-        const rows = restLines.map(line => line.trim().split(",").map(cell => cell.replace(/^"|"$/g,"")));
+        const rows = restLines.map(parseCSVLine);
 
         this.#rows = /** @type {RowObject[]} */(rows.map(row => zip(this.#headers, row)));
     }
@@ -34,6 +34,10 @@ class CSVDBQuery {
     #groupBy = null;
     /** @type {{ [alias: string]: string|((row: RowObject) => any) }?} */
     #selection = null;
+    /** @type {((rowA: RowObject, rowB: RowObject) => number)?} */
+    #sort = null;
+
+    #limit = NaN;
 
     /**
      * @param {RowObject[]} rows
@@ -43,7 +47,7 @@ class CSVDBQuery {
     }
 
     /**
-     * Substantiate rows and create a new query object from them
+     * Materialise rows and create a new query object from them
      */
     query () {
         return new CSVDBQuery(this.toArray());
@@ -59,10 +63,13 @@ class CSVDBQuery {
     }
 
     /**
-     * @param {(row: RowObject) => T} discriminator
-     * @template T
+     * @param {((row: RowObject) => any)|string} discriminator
      */
     groupBy (discriminator) {
+        if (typeof discriminator === "string") {
+            const d = discriminator;
+            discriminator = row => row[d];
+        }
         this.#groupBy = discriminator;
         return this;
     }
@@ -84,13 +91,46 @@ class CSVDBQuery {
         return this;
     }
 
+    /**
+     * Sorts based on input rows.
+     * To sort based on output use `.toArray().sort()`
+     * @param {(rowA: RowObject, rowB: RowObject) => number} comparator
+     */
+    orderBy (comparator) {
+        this.#sort = comparator;
+        return this;
+    }
+
+    /**
+     * @param {number} limit
+     */
+    fetchFirst (limit) {
+        this.#limit = limit;
+        return this;
+    }
+
+    /**
+     * Materialise result rows
+     * @returns
+     */
     toArray () {
+        return [...this];
+    }
+
+    *[Symbol.iterator] () {
         let rows = this.#rows;
 
+        // WHERE
         for (const predicate of this.#where) {
             rows = rows.filter(predicate);
         }
 
+        // ORDER BY
+        if (this.#sort) {
+            rows.sort(this.#sort);
+        }
+
+        // GROUP BY
         let groupedRows = null;
 
         if(this.#groupBy) {
@@ -99,17 +139,18 @@ class CSVDBQuery {
         else if (this.#hasAggregates()) {
             groupedRows = [rows];
         }
-
-        if (groupedRows) {
-            return groupedRows.map(rows => mapSelectionToRow(rows, this.#selection));
+        else {
+            groupedRows = rows.map(row => [row]);
         }
 
-        return rows.map(row => mapSelectionToRow([row], this.#selection));
-    }
+        // FETCH FIRST
+        if (!isNaN(this.#limit)) {
+            groupedRows.length = Math.min(groupedRows.length, this.#limit);
+        }
 
-    *[Symbol.iterator] () {
-        for (const row of this.toArray()) {
-            yield row;
+        // SELECT
+        for (const rows of groupedRows) {
+            yield mapSelectionToRow(rows, this.#selection);
         }
     }
 
@@ -210,4 +251,21 @@ function mapSelectionToRow (sourceRows, selection) {
     }
 
     return out;
+}
+
+/**
+ * @param {string} line
+ */
+function parseCSVLine (line) {
+    // line => line.trim().split(",").map(cell => cell.replace(/^"|"$/g,""))
+    line = line.trim();
+    const matches = line.matchAll(/([^",]*|"[^"]*")(,|$)/g);
+
+    const m = [...matches];
+
+    if (m[m.length-1][0].length === 0) {
+        m.length--;
+    }
+
+    return m.map(match => match[1].replace(/^"|"$/g, ""));
 }
