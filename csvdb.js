@@ -38,7 +38,7 @@ class CSVDBQuery {
     /** @type {((rowA: RowObject, rowB: RowObject) => number)?} */
     #sort = null;
 
-    #limit = NaN;
+    #limit = Number.POSITIVE_INFINITY;
 
     /**
      * @param {Iterable<RowObject>} rows
@@ -119,39 +119,50 @@ class CSVDBQuery {
     }
 
     *[Symbol.iterator] () {
-        let rows = [...this.#rows];
+        if (this.#limit === 0) {
+            return;
+        }
+
+        /** @type {RowObject[]|Iterable<RowObject>} */
+        let rows = this.#rows;
 
         // WHERE
         for (const predicate of this.#where) {
-            rows = rows.filter(predicate);
+            rows = filter(rows, predicate);
         }
 
         // ORDER BY
         if (this.#sort) {
-            rows.sort(this.#sort);
+            // Need to materialise the rows in order to sort
+            rows = [...rows].sort();
         }
 
         // GROUP BY
-        let groupedRows = null;
+        let iterator = rows;
+        let aggregate = false;
 
         if(this.#groupBy) {
-            groupedRows = groupRows(rows, this.#groupBy);
+            aggregate = true;
+            iterator = groupRows(rows, this.#groupBy);
         }
         else if (this.#hasAggregates()) {
-            groupedRows = [rows];
-        }
-        else {
-            groupedRows = rows.map(row => [row]);
-        }
-
-        // FETCH FIRST
-        if (!isNaN(this.#limit)) {
-            groupedRows.length = Math.min(groupedRows.length, this.#limit);
+            aggregate = true;
+            iterator = [[...rows]];
         }
 
         // SELECT
-        for (const rows of groupedRows) {
-            yield mapSelectionToRow(rows, this.#selection);
+        let i = 1;
+        for (const row of iterator) {
+            /** @type {RowObject[]} */
+            // @ts-ignore
+            const rowGroup = aggregate ? row : [row];
+
+            yield mapSelectionToRow(rowGroup, this.#selection);
+
+            // FETCH FIRST
+            if (++i > this.#limit) {
+                return;
+            }
         }
     }
 
@@ -176,12 +187,13 @@ function zip (keys, values) {
 }
 
 /**
- * @param {{}[]} rows
- * @param {(row: object) => T} discriminator
+ * @param {Iterable<RowObject>} rows
+ * @param {(row: RowObject) => T} discriminator
  * @template T
+ * @returns {RowObject[][]}
  */
 function groupRows (rows, discriminator) {
-    /** @type {Map<T, object[]>} */
+    /** @type {Map<T, RowObject[]>} */
     const resultSet = new Map();
 
     for (const row of rows) {
@@ -200,20 +212,22 @@ function groupRows (rows, discriminator) {
 const isAggregate = (/** @type {string|((row: {}) => any)} */ col) => typeof col === "string" && /^[A-Z]{3,5}\(.*\)$/.test(col);
 
 /**
- * @param {any[]} sourceRows
- * @param {{ [alias: string]: string|((row: {}) => any) }?} selection
+ * @param {RowObject[]} sourceRows
+ * @param {{ [alias: string]: string|((row: RowObject) => any) }?} selection
  */
 function mapSelectionToRow (sourceRows, selection) {
     const out = {};
 
+    const firstRow = sourceRows[0];
+
     if (!selection) {
-        return sourceRows[0];
+        return firstRow;
     }
 
-    for (const [ alias, col] of Object.entries(selection)) {
+    for (const [alias, col] of Object.entries(selection)) {
 
         if (col instanceof Function) {
-            out[alias] = col(sourceRows[0]);
+            out[alias] = col(firstRow);
         }
         else {
             const aggregateMatch = /^([A-Z]{3,5})\((.*)\)$/.exec(col);
@@ -245,8 +259,8 @@ function mapSelectionToRow (sourceRows, selection) {
 
                 out[alias] = value;
             }
-            else if (sourceRows.length > 0) {
-                out[alias] = sourceRows[0][col];
+            else if (firstRow) {
+                out[alias] = firstRow[col];
             }
         }
     }
@@ -269,4 +283,18 @@ function parseCSVLine (line) {
     }
 
     return m.map(match => match[1].replace(/^"|"$/g, ""));
+}
+
+/**
+ * @param {Iterable<T>} iterable
+ * @param {(item: T) => boolean} predicate
+ * @template T
+ * @returns {Iterable<T>}
+ */
+function *filter (iterable, predicate) {
+    for (const item of iterable) {
+        if (predicate(item)) {
+            yield item;
+        }
+    }
 }
