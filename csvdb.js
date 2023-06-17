@@ -26,6 +26,7 @@ export class CSVDB
 }
 
 class CSVDBQuery {
+    /** @type {Iterable<RowObject>} */
     #rows;
 
     /** @type {((row: RowObject) => boolean)[]} */
@@ -40,7 +41,7 @@ class CSVDBQuery {
     #limit = NaN;
 
     /**
-     * @param {RowObject[]} rows
+     * @param {Iterable<RowObject>} rows
      */
     constructor (rows) {
         this.#rows = rows;
@@ -50,7 +51,7 @@ class CSVDBQuery {
      * Materialise rows and create a new query object from them
      */
     query () {
-        return new CSVDBQuery(this.toArray());
+        return new CSVDBQuery(this);
     }
 
     /**
@@ -118,7 +119,7 @@ class CSVDBQuery {
     }
 
     *[Symbol.iterator] () {
-        let rows = this.#rows;
+        let rows = [...this.#rows];
 
         // WHERE
         for (const predicate of this.#where) {
