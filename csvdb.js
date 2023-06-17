@@ -156,7 +156,7 @@ class CSVDBQuery {
             /** @type {RowObject[]} */
             const rowGroup = Array.isArray(row) ? row : [row];
 
-            yield mapSelectionToRow(rowGroup, this.#selection);
+            yield mapSelectionToRow(rowGroup, this.#selection, i);
 
             // FETCH FIRST
             if (++i > this.#limit) {
@@ -212,9 +212,9 @@ const isAggregate = (/** @type {string|((row: {}) => any)} */ col) => typeof col
 
 /**
  * @param {RowObject[]} sourceRows
- * @param {{ [alias: string]: string|((row: RowObject) => any) }?} selection
+ * @param {{ [alias: string]: string|((row: RowObject, index?: number) => any) }?} selection
  */
-function mapSelectionToRow (sourceRows, selection) {
+function mapSelectionToRow (sourceRows, selection, index) {
     const out = {};
 
     const firstRow = sourceRows[0];
@@ -226,7 +226,7 @@ function mapSelectionToRow (sourceRows, selection) {
     for (const [alias, col] of Object.entries(selection)) {
 
         if (col instanceof Function) {
-            out[alias] = col(firstRow);
+            out[alias] = col(firstRow, index);
         }
         else {
             const aggregateMatch = /^([A-Z]{3,5})\((.*)\)$/.exec(col);
@@ -259,7 +259,12 @@ function mapSelectionToRow (sourceRows, selection) {
                 out[alias] = value;
             }
             else if (firstRow) {
-                out[alias] = firstRow[col];
+                if (col === "*") {
+                    Object.assign(out, firstRow);
+                }
+                else {
+                    out[alias] = firstRow[col];
+                }
             }
         }
     }

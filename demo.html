@@ -10,19 +10,41 @@
                 .then(csv => {
                     const db = new CSVDB(csv);
 
+                    output(db.query().fetchFirst(3).select({index:(row,index)=>index,"*":"*"}).toArray());
+
                     const year = row => new Date(row.Date).getFullYear();
 
                     const result = db
                         .query()
                         .groupBy(year)
                         .where(row => row.From === "Deposit")
-                        .select({year,total:"SUM(Transaction)",count:"COUNT(*)",average:"AVG(Transaction)",list:"AGG(Transaction)"});
+                        .select({
+                            year,
+                            total: "SUM(Transaction)",
+                            count: "COUNT(*)",
+                            average: "AVG(Transaction)",
+                            list: "AGG(Transaction)"
+                        })
+                        .orderBy((a,b) => +a.Transaction - +b.Transaction);
 
-                    for (const row of result) {
-                        console.log(row);
-                    }
+                    output(result.toArray().sort((a, b) => a.year - b.year));
 
-                    output(result.toArray());
+                    const result2 = db
+                        .query()
+                        .groupBy("From")
+                        .select({
+                            From: "From",
+                            total: "SUM(Amount)",
+                            count: "COUNT(*)",
+                            average: "AVG(Amount)"
+                        })
+                        .orderBy((a,b) => +a.Amount - +b.Amount);
+
+                    // for (const row of result) {
+                    //     console.log(row);
+                    // }
+
+                    output(result2.toArray());
                 });
 
             function output (data) {
@@ -30,9 +52,14 @@
                 const headerRow = `<tr>${headers.map(h=>`<th>${h}</th>`).join("")}</tr>`;
                 const dataRows = data.map(row=>`<tr>${Object.values(row).map(c=>`<td>${c}</td>`).join("")}</tr>`).join("");
                 const html = `<table>${headerRow}${dataRows}</table>`;
-                document.getElementById("output").innerHTML = html;
+                document.getElementById("output").innerHTML += html;
             }
         </script>
+        <style>
+            body { font-family: 'Lucida Sans', 'Lucida Sans Regular', 'Lucida Grande', 'Lucida Sans Unicode', Geneva, Verdana, sans-serif; }
+            table { width: 100%; border-collapse: collapse; margin-bottom: 1em; }
+            tbody tr:nth-child(2n) td { background-color: rgba(0, 0, 0, 0.05); }
+        </style>
     </head>
     <body>
         <h1>Demo</h1>
