@@ -29,7 +29,7 @@ class CSVDBQuery {
     /** @type {Iterable<RowObject>} */
     #rows;
 
-    /** @type {((row: RowObject) => boolean)[]} */
+    /** @type {((row: RowObject, index: number) => boolean)[]} */
     #where = [];
     /** @type {((row: RowObject) => any)?} */
     #groupBy = null;
@@ -56,7 +56,7 @@ class CSVDBQuery {
 
     /**
      * Multiple calls will be AND'd together
-     * @param {(row: RowObject) => boolean} predicate
+     * @param {(row: RowObject, index: number) => boolean} predicate
      */
     where (predicate) {
         this.#where.push(predicate);
@@ -291,13 +291,14 @@ function parseCSVLine (line) {
 
 /**
  * @param {Iterable<T>} iterable
- * @param {(item: T) => boolean} predicate
+ * @param {(item: T, index: number) => boolean} predicate
  * @template T
  * @returns {Iterable<T>}
  */
 function *filter (iterable, predicate) {
+    let i = 0;
     for (const item of iterable) {
-        if (predicate(item)) {
+        if (predicate(item, i++)) {
             yield item;
         }
     }
