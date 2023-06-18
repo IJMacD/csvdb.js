@@ -10,7 +10,9 @@
                 .then(csv => {
                     const db = new CSVDB(csv);
 
-                    output(db.query().fetchFirst(3).select({index:(row,index)=>index,"*":"*"}).toArray());
+                    const formatter = new Intl.NumberFormat([], { style: "currency", currency: "GBP" });
+
+                    output(db.query().fetchFirst(3).select({index:(row,index)=>index,amount:"Amount",amount20:r=>formatter.format(+r.Amount*20)}).toArray());
 
                     const year = row => new Date(row.Date).getFullYear();
 
@@ -25,7 +27,15 @@
                             average: "AVG(Transaction)",
                             list: "AGG(Transaction)"
                         })
-                        .orderBy((a,b) => +a.Transaction - +b.Transaction);
+                        .orderBy((a,b) => +a.Transaction - +b.Transaction)
+                        .query()
+                        .select({
+                            year:"year",
+                            total:r=>formatter.format(r.total),
+                            count:"count",
+                            average:r=>formatter.format(r.average),
+                            list:"list",
+                        });
 
                     output(result.toArray().sort((a, b) => a.year - b.year));
 
@@ -38,6 +48,7 @@
                             count: "COUNT(*)",
                             average: "AVG(Amount)"
                         })
+                        .where((row, index) => index % 50 === 0)
                         .orderBy((a,b) => +a.Amount - +b.Amount);
 
                     // for (const row of result) {
@@ -48,10 +59,16 @@
                 });
 
             function output (data) {
-                const headers = Object.keys(data[0]);
-                const headerRow = `<tr>${headers.map(h=>`<th>${h}</th>`).join("")}</tr>`;
-                const dataRows = data.map(row=>`<tr>${Object.values(row).map(c=>`<td>${c}</td>`).join("")}</tr>`).join("");
-                const html = `<table>${headerRow}${dataRows}</table>`;
+                let html;
+                if (data.length === 0) {
+                    html = `<p>No rows returned</p>`;
+                }
+                else {
+                    const headers = Object.keys(data[0]);
+                    const headerRow = `<tr>${headers.map(h=>`<th>${h}</th>`).join("")}</tr>`;
+                    const dataRows = data.map(row=>`<tr>${Object.values(row).map(c=>`<td>${c}</td>`).join("")}</tr>`).join("");
+                    html = `<table>${headerRow}${dataRows}</table>`;
+                }
                 document.getElementById("output").innerHTML += html;
             }
         </script>
