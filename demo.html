@@ -70,6 +70,14 @@
 
             output(r2.toArray());
 
+            const db3 = new CSVDB("e\n1\n2\n3\n4\n5\n6\n7\n8\n9\n10");
+
+            const r3 = db2
+                .query()
+                .joinOn(db3.query(), (a,b) => +a.b > +b.e);
+
+            output(r3.toArray());
+
             function output (data) {
                 let html;
                 if (data.length === 0) {

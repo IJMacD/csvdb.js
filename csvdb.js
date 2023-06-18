@@ -72,6 +72,35 @@ class CSVDBQuery {
     }
 
     /**
+     * Helper method to join two Queries.
+     * `on` is a Callback which is given two rows (one from each side of the
+     * join) and returns a boolean to indicate whether or not this match should
+     * be included in the result set.
+     * @param {CSVDBQuery} other
+     * @param {(rowA: RowObject, rowB: RowObject) => boolean} on
+     */
+    joinOn (other, on) {
+        let otherCache;
+        this.#join.push(rowA => {
+            // Materialise `other` just once
+            if (typeof otherCache === "undefined") {
+                otherCache = [...other];
+            }
+
+            const out = [];
+
+            for (const rowB of otherCache) {
+                if (on(rowA, rowB)) {
+                    out.push({ ...rowA, ...rowB });
+                }
+            }
+
+            return out;
+        });
+        return this;
+    }
+
+    /**
      * Multiple calls will be AND'd together
      * @param {(row: RowObject, index: number) => boolean} predicate
      */
