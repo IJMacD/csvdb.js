@@ -29,6 +29,8 @@ class CSVDBQuery {
     /** @type {Iterable<RowObject>} */
     #rows;
 
+    /** @type {((row: RowObject) => RowObject[])[]} */
+    #join = [];
     /** @type {((row: RowObject, index: number) => boolean)[]} */
     #where = [];
     /** @type {((row: RowObject) => any)?} */
@@ -52,6 +54,21 @@ class CSVDBQuery {
      */
     query () {
         return new CSVDBQuery(this);
+    }
+
+    /**
+     * Callback `join` is called once per row of the current set.
+     * The callback should return zero or more rows as appropriate to implement
+     * the join.
+     * The `RowObject`s returned from the callback conceptually should include all
+     * fields from existing the row, but they don't have to.
+     * Multiple joins can be added with multiple calls to the `join()` method
+     * and will be executed in sequence.
+     * @param {(row: RowObject) => RowObject[]} join
+     */
+    join (join) {
+        this.#join.push(join);
+        return this;
     }
 
     /**
@@ -125,6 +142,16 @@ class CSVDBQuery {
 
         /** @type {RowObject[]|Iterable<RowObject>} */
         let rows = this.#rows;
+
+        for (const join of this.#join) {
+            const newRows = [];
+
+            for (const row of rows) {
+                newRows.push(...join(row))
+            }
+
+            rows = newRows;
+        }
 
         // WHERE
         for (const predicate of this.#where) {

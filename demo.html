@@ -58,6 +58,18 @@
                     output(result2.toArray());
                 });
 
+            const db2 = new CSVDB("a,b,c\n1,2,3\n4,5,6\n7,8,9");
+
+            const r2 = db2
+                .query()
+                .join(row => {
+                    const length = +row.a;
+                    return Array.from({length}).map((_,i) => ({ ...row, d: i }));
+                })
+                .where(row => row.d < 5);
+
+            output(r2.toArray());
+
             function output (data) {
                 let html;
                 if (data.length === 0) {
