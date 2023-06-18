@@ -20,6 +20,10 @@ export class CSVDB
         this.#rows = /** @type {RowObject[]} */(rows.map(row => zip(this.#headers, row)));
     }
 
+    [Symbol.iterator] () {
+        return this.query()[Symbol.iterator]();
+    }
+
     query () {
         return new CSVDBQuery(this.#rows);
     }

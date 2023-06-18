@@ -74,7 +74,7 @@
 
             const r3 = db2
                 .query()
-                .joinOn(db3.query(), (a,b) => +a.b > +b.e);
+                .joinOn(db3, (a,b) => +a.b > +b.e);
 
             output(r3.toArray());
 
