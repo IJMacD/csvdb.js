@@ -7,6 +7,10 @@ export class CSVDB
     /** @type {RowObject[]} */
     #rows;
 
+    get rowCount () {
+        return this.#rows.length;
+    }
+
     /**
      * @param {string} csv
      */
@@ -80,10 +84,11 @@ class CSVDBQuery {
      * `on` is a Callback which is given two rows (one from each side of the
      * join) and returns a boolean to indicate whether or not this match should
      * be included in the result set.
+     * If `on` is not provided then the result is a cartesian join.
      * @param {CSVDBQuery} other
-     * @param {(rowA: RowObject, rowB: RowObject) => boolean} on
+     * @param {(rowA: RowObject, rowB: RowObject) => boolean} [on]
      */
-    joinOn (other, on) {
+    joinOn (other, on = () => true) {
         let otherCache;
         this.#join.push(rowA => {
             // Materialise `other` just once
@@ -314,6 +319,15 @@ function mapSelectionToRow (sourceRows, selection, index) {
                 }
                 else if (fnName === "AGG") {
                     value = values.join();
+                }
+                else if (fnName === "ARRAY") {
+                    value = values;
+                }
+                else if (fnName === "JSON") {
+                    value = JSON.stringify(values);
+                }
+                else if (fnName === "ANY") {
+                    value = values[0];
                 }
 
                 out[alias] = value;
