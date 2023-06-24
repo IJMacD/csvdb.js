@@ -33,6 +33,38 @@ export class CSVDB
     query () {
         return new CSVDBQuery(this.#rows);
     }
+
+    /**
+     * @param {Iterable<RowObject>} resultsA
+     * @param {Iterable<RowObject>} resultsB
+     */
+    static except (resultsA, resultsB) {
+        return new CSVDBQuery(except(resultsA, resultsB));
+    }
+
+    /**
+     * @param {Iterable<RowObject>} resultsA
+     * @param {Iterable<RowObject>} resultsB
+     */
+    static intersect (resultsA, resultsB) {
+        return new CSVDBQuery(intersect(resultsA, resultsB));
+    }
+
+    /**
+     * @param {Iterable<RowObject>} resultsA
+     * @param {Iterable<RowObject>} resultsB
+     */
+    static union (resultsA, resultsB) {
+        return new CSVDBQuery(unionAll(resultsA, resultsB)).distinct();
+    }
+
+    /**
+     * @param {Iterable<RowObject>} resultsA
+     * @param {Iterable<RowObject>} resultsB
+     */
+    static unionAll (resultsA, resultsB) {
+        return new CSVDBQuery(unionAll(resultsA, resultsB));
+    }
 }
 
 class CSVDBQuery {
@@ -234,6 +266,11 @@ class CSVDBQuery {
             // We're going to have to materialise the rows anyway so do it now
             rowIterator = [[...rows]];
         }
+        else if (this.#windowSpecs.size > 0) {
+            // Unfortunately we need to materialise the rows once to pass as the
+            // 4th argument to mapSelectionToRow()
+            rowIterator = [...rows];
+        }
 
         const distinctCache = [];
 
@@ -241,7 +278,8 @@ class CSVDBQuery {
         let i = 1;
         for (const row of rowIterator) {
             /** @type {RowObject[]} */
-            const rowGroup = Array.isArray(row) ? row : [...rowIterator];
+            const rowGroup = Array.isArray(row) ? row :
+                (this.#windowSpecs.size === 0 ? [row] : /** @type {RowObject[]} */(rowIterator));
             const sourceRow = Array.isArray(row) ? rowGroup[0] : row;
 
             const result = this.#mapSelectionToRow(sourceRow, this.#selection, i, rowGroup);
@@ -491,4 +529,52 @@ function isSame (rowA, rowB) {
     if (keysA.length !== keysB.length) return false;
 
     return keysA.every(key => rowA[key] === rowB[key]);
+}
+
+/**
+ * @param {Iterable<RowObject>} resultsA
+ * @param {Iterable<RowObject>} resultsB
+ */
+function *except (resultsA, resultsB) {
+    const cache = [...resultsB];
+
+    for (const result of resultsA) {
+        if (!isDistinct(cache, result)) {
+            continue;
+        }
+
+        cache.push(result);
+
+        yield result;
+    }
+}
+
+/**
+ * @param {Iterable<RowObject>} resultsA
+ * @param {Iterable<RowObject>} resultsB
+ */
+function *intersect (resultsA, resultsB) {
+    const cache = [...resultsB];
+
+    for (const result of resultsA) {
+        if (isDistinct(cache, result)) {
+            continue;
+        }
+
+        yield result;
+    }
+}
+
+/**
+ * @param {Iterable<RowObject>} resultsA
+ * @param {Iterable<RowObject>} resultsB
+ */
+function *unionAll (resultsA, resultsB) {
+    for (const result of resultsA) {
+        yield result;
+    }
+
+    for (const result of resultsB) {
+        yield result;
+    }
 }
