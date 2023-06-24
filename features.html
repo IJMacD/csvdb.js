@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Features</title>
+        <script>
+            function output (target, data) {
+                let html;
+                if (data.length === 0) {
+                    html = `<p>No rows returned</p>`;
+                }
+                else {
+                    const headers = Object.keys(data[0]);
+                    const headerRow = `<tr>${headers.map(h=>`<th>${h}</th>`).join("")}</tr>`;
+                    const dataRows = data.map(row=>`<tr>${Object.values(row).map(c=>`<td>${c}</td>`).join("")}</tr>`).join("");
+                    html = `<table>${headerRow}${dataRows}</table>`;
+                }
+                document.querySelector(target).innerHTML += html;
+            }
+        </script>
+        <style>
+            body { font-family: 'Lucida Sans', 'Lucida Sans Regular', 'Lucida Grande', 'Lucida Sans Unicode', Geneva, Verdana, sans-serif; }
+            main { max-width: 1280px; margin: 0 auto; }
+            table { border-collapse: collapse; margin-bottom: 1em; }
+            th, td { padding: 0.25em 0.5em; }
+            tbody tr:nth-child(2n) td { background-color: rgba(0, 0, 0, 0.05); }
+            .code { padding: 0.5em; border: 1px solid #DDD;  }
+            .code, code { background-color: #ECECEC;font-family: 'Courier New', Courier, monospace; white-space: pre; }
+            output { display: block; margin-bottom: 0.5em; padding: 0.25em 0.5em; border: 1px solid #DDD; }
+            output::before { content: "Output"; color: #CCC; font-size: 0.8em; font-weight: bold; display: block; margin-bottom: 1em; }
+        </style>
+    </head>
+    <body>
+        <main>
+
+            <h1>Features</h1>
+            <p>Examples of supported features.</p>
+
+            <h2>Source Data</h2>
+            <p>
+                This is the source data which is used in most of the examples.
+                CSV files are parsed into arrays of objects matching the header
+                found in the CSV file.
+                Remember that all values remain as strings unless explicitly cast.
+            </p>
+            <p>
+                The return value from the <code>.query()</code> method is a Query object.
+                All method calls on this object return itself to allow for chaining.
+                The object is iterable, but offers a convenience
+                <code>.toArray()</code> method.
+            </p>
+            <p class="code"><code>const db = new CSVDB("a,b,c\n1,2,3\n4,5,6");
+console.table(db.query().toArray());
+console.log(JSON.stringify(db.query().toArray()));</code></p>
+            <h3>Results</h3>
+            <output id="output-source"></output>
+            <script type="module">
+                import { CSVDB } from "./csvdb.js";
+                const db = new CSVDB("a,b,c\n1,2,3\n4,5,6");
+                output("#output-source", db.query().toArray());
+                document.querySelector("#output-source").innerHTML += `<code>${JSON.stringify(db.query().toArray())}</code>`;
+            </script>
+            <p>
+                The Query object itself has a <code>.query()</code> method which
+                will produce a new query object and allow composite queries to be
+                constructed.
+            </p>
+
+            <h2>SELECT</h2>
+            <h3>Simple SELECT</h3>
+            <p>Simple <code>SELECT</code> is just an array of field names.</p>
+            <p class="code"><code>const results = db.query().select(["c","a"]);
+console.table(results.toArray());</code></p>
+            <output id="output-simple-select"></output>
+            <script type="module">
+                import { CSVDB } from "./csvdb.js";
+                const db = new CSVDB("a,b,c\n1,2,3\n4,5,6");
+                const results = db.query().select(["c","a"]);
+                output("#output-simple-select", results.toArray());
+            </script>
+
+            <h3>Aliases</h3>
+            <p>Aliases in <code>SELECT</code> clauses can be specified by using object keys.</p>
+            <p class="code"><code>const results = db.query().select({
+    lastColumn: "c",
+    secondColumn: "b",
+});
+console.table(results.toArray());</code></p>
+            <output id="output-alias-select"></output>
+            <script type="module">
+                import { CSVDB } from "./csvdb.js";
+                const db = new CSVDB("a,b,c\n1,2,3\n4,5,6");
+                const results = db.query().select({
+                    lastColumn: "c",
+                    secondColumn: "b",
+                });
+                output("#output-alias-select", results.toArray());
+            </script>
+
+            <h3>Arbitrary Columns</h3>
+            <p>Columns in <code>SELECT</code> clauses can be arbitrarily defined by providing functions in the select object. The callback functions receives the row data as its first parameter.</p>
+            <p class="code"><code>const results = db.query().select({
+    "c as letter of the Alphabet":
+        row => String.fromCodePoint(0x40 + +row.c),
+    "b squared":
+        row => Math.pow(row.b, 2),
+    "a + b":
+        row => +row.a + +row.b
+});
+console.table(results.toArray());</code></p>
+            <output id="output-arbitrary-select"></output>
+            <script type="module">
+                import { CSVDB } from "./csvdb.js";
+                const db = new CSVDB("a,b,c\n1,2,3\n4,5,6");
+                const results = db.query().select({
+                    "c as letter of the alphabet": row => String.fromCodePoint(0x40 + +row.c),
+                    "b squared": row => Math.pow(row.b, 2),
+                    "a + b": row => +row.a + +row.b
+                });
+                output("#output-arbitrary-select", results.toArray());
+            </script>
+
+            <h3><code>SELECT *</code></h3>
+            <p><code>SELECT *</code> is supported.</p>
+            <p class="code"><code>const results = db.query().select({
+    Date: () => new Date().toISOString(),
+    "doesn't matter": "*",
+});
+console.table(results.toArray());</code></p>
+            <output id="output-select-star"></output>
+            <script type="module">
+                import { CSVDB } from "./csvdb.js";
+                const db = new CSVDB("a,b,c\n1,2,3\n4,5,6");
+                const results = db.query().select({
+                    Date: () => new Date().toISOString(),
+                    "doesn't matter": "*",
+                });
+                output("#output-select-star", results.toArray());
+            </script>
+
+            <h3>Optional <code>.select()</code></h3>
+            <p>As shown in the first example on this page, <code>.select()</code> is optional and defaults to the equivalent of <code>.select(["*"])</code>.</p>
+
+            <h2>WHERE</h2>
+            <p>Rows can be filtered by passing predicate functions to <code>.where()</code>. Just like in select objects, the predicate function will get the row object as its first parameter.</p>
+            <p class="code"><code>const results = db.query().where(row => +row.b > 2);
+console.table(results.toArray());</code></p>
+            <output id="output-where"></output>
+            <script type="module">
+                import { CSVDB } from "./csvdb.js";
+                const db = new CSVDB("a,b,c\n1,2,3\n4,5,6");
+                const results = db.query().where(row => +row.b > 2);
+                output("#output-where", results.toArray());
+            </script>
+
+            <h3>Multiple predicates</h3>
+            <p>Multiple calls to <code>.where()</code> results in the equivalent of ANDing all the predicates together.</p>
+            <p class="code"><code>const results = db.query()
+    .where(row => row.a === "1" || +row.c > 5)
+    .where(row => +row.b &lt; 5);
+console.table(results.toArray());</code></p>
+            <output id="output-where-multiple"></output>
+            <script type="module">
+                import { CSVDB } from "./csvdb.js";
+                const db = new CSVDB("a,b,c\n1,2,3\n4,5,6");
+                const results = db.query()
+                    .where(row => row.a === "1" || +row.c > 5)
+                    .where(row => +row.b < 5);
+                output("#output-where-multiple", results.toArray());
+            </script>
+
+            <h2>GROUP BY</h2>
+            <p>Rows can be grouped based on any primitive value returned from a discriminator function.</p>
+            <p class="code"><code>const results = db.query()
+    .groupBy(row => row.a)
+    .select(["a","COUNT(*)"]);
+console.table(results.toArray());</code></p>
+            <output id="output-groupby"></output>
+            <script type="module">
+                import { CSVDB } from "./csvdb.js";
+                const db = new CSVDB("a,b,c\n1,2,3\n4,5,6");
+                const results = db.query()
+                    .groupBy(row => row.a)
+                    .select(["a","COUNT(*)"]);
+                output("#output-groupby", results.toArray());
+            </script>
+
+            <h3>Aggregate Functions</h3>
+            <p>Standard aggregate functions are available as well as some non-standard ones. The result of <code>ARRAY()</code> is a JavaScript array; the rest produce primitive results.</p>
+            <p class="code"><code>const results = db.query()
+    .select([
+        "COUNT(*)",
+        "MIN(a)",
+        "MAX(b)",
+        "SUM(c)",
+        "AVG(c)",
+        "AGG(a)",
+        "JSON(b)",
+        "ARRAY(c)",
+        "ANY(c)"
+    ]);
+console.table(results.toArray());</code></p>
+            <output id="output-groupby-aggregate"></output>
+            <script type="module">
+                import { CSVDB } from "./csvdb.js";
+                const db = new CSVDB("a,b,c\n1,2,3\n4,5,6");
+                const results = db.query()
+                    .select([
+                        "COUNT(*)",
+                        "MIN(a)",
+                        "MAX(b)",
+                        "SUM(c)",
+                        "AVG(c)",
+                        "AGG(a)",
+                        "JSON(b)",
+                        "ARRAY(c)",
+                        "ANY(c)"
+                    ]);
+                output("#output-groupby-aggregate", results.toArray());
+            </script>
+
+            <h2>ORDER BY</h2>
+            <p>
+                <code>.orderBy()</code> sorts results based on the input rows.
+                A sort function must be provided which takes two rows and produces
+                a positive number, negative number, or zero to indicate the relative
+                sort order of the two rows.<br/>
+                Remember than rows can still be sorted after results have been
+                generated using the native <code>Array.sort()</code> method.
+            </p>
+            <p class="code"><code>const results = db.query()
+    .orderBy((rowA, rowB) => -rowA.a.localeCompare(rowB.a));
+console.table(results.toArray());</code></p>
+            <output id="output-orderby"></output>
+            <script type="module">
+                import { CSVDB } from "./csvdb.js";
+                const db = new CSVDB("a,b,c\n1,2,3\n4,5,6");
+                const results = db.query()
+                    .orderBy((rowA, rowB) => -rowA.a.localeCompare(rowB.a));
+                output("#output-orderby", results.toArray());
+            </script>
+
+
+            <h2>FETCH FIRST</h2>
+            <p>
+                Fetch the first <code>N</code> rows, limiting the result set.
+            </p>
+            <p class="code"><code>const results = db.query()
+    .orderBy((rowA, rowB) => -rowA.a.localeCompare(rowB.a))
+    .fetchFirst(1);
+console.table(results.toArray());</code></p>
+            <output id="output-fetch-first"></output>
+            <script type="module">
+                import { CSVDB } from "./csvdb.js";
+                const db = new CSVDB("a,b,c\n1,2,3\n4,5,6");
+                const results = db.query()
+                    .orderBy((rowA, rowB) => -rowA.a.localeCompare(rowB.a))
+                    .fetchFirst(1);
+                output("#output-fetch-first", results.toArray());
+            </script>
+
+            <h2>JOIN</h2>
+            <p>
+                Joins are very flexible allowing arbitrary result generation. A
+                join function is provided with a single row and returns zero or
+                more rows representing the join.
+                Multiple calls to <code>.join()</code> allow multiple joins to
+                be calculated.
+            </p>
+            <p class="code"><code>const results = db.query()
+    .join(row => {
+        return Array.from({length: +row.a}).map((_,i) => ({ ...row, z: i });
+    });
+console.table(results.toArray());</code></p>
+            <output id="output-join"></output>
+            <script type="module">
+                import { CSVDB } from "./csvdb.js";
+                const db = new CSVDB("a,b,c\n1,2,3\n4,5,6");
+                const results = db.query()
+                    .join(row => {
+                        return Array.from({length: +row.a}).map((_,i) => ({ ...row, z: i }));
+                    });
+                output("#output-join", results.toArray());
+            </script>
+
+            <h3>JOIN ON</h3>
+            <p>
+                For the common case of joining two CSVDB objects, a convenience
+                method <code>.joinOn()</code> is provided. It takes a second
+                CSVDB query object and a comparator function to determine whether
+                the cartesian match should be in the result set or not.
+            </p>
+            <p class="code"><code>const db2 = new CSVDB("i,j,k\n2,4,6\n3,6,9");
+const results = db.query()
+    .joinOn(db2.query(), (rowA, rowB) => rowA.c === rowB.i || rowA.a === rowB.j;
+console.table(results.toArray());</code></p>
+            <output id="output-join-on"></output>
+            <script type="module">
+                import { CSVDB } from "./csvdb.js";
+                const db = new CSVDB("a,b,c\n1,2,3\n4,5,6");
+                const db2 = new CSVDB("i,j,k\n2,4,6\n3,6,9");
+                const results = db.query()
+                    .joinOn(db2.query(), (rowA, rowB) => rowA.c === rowB.i || rowA.a === rowB.j);
+                output("#output-join-on", results.toArray());
+            </script>
+
+            <h2>DISTINCT</h2>
+            <p>
+                Use the <code>.distinct()</code> method to make sure results are
+                a true set.
+            </p>
+            <p class="code"><code>const db = new CSVDB("a,b,c\n1,2,3\n1,2,3\n4,5,6");
+const results = db.query();
+console.table(results.toArray());
+const results2 = db.query().distinct();
+console.table(results2.toArray());</code></p>
+            <output id="output-distinct"></output>
+            <script type="module">
+                import { CSVDB } from "./csvdb.js";const db = new CSVDB("a,b,c\n1,2,3\n1,2,3\n4,5,6");
+                const results = db.query();
+                output("#output-distinct", results.toArray());
+                const results2 = db.query().distinct();
+                output("#output-distinct", results2.toArray());
+            </script>
+        </main>
+    </body>
+</html>

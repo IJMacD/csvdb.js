@@ -50,6 +50,8 @@ class CSVDBQuery {
 
     #limit = Number.POSITIVE_INFINITY;
 
+    #distinct = false;
+
     /**
      * @param {Iterable<RowObject>} rows
      */
@@ -165,6 +167,11 @@ class CSVDBQuery {
         return this;
     }
 
+    distinct (distinct = true) {
+        this.#distinct = distinct;
+        return this;
+    }
+
     /**
      * Materialise result rows
      * @returns
@@ -199,7 +206,7 @@ class CSVDBQuery {
         // ORDER BY
         if (this.#sort) {
             // Need to materialise the rows in order to sort
-            rows = [...rows].sort();
+            rows = [...rows].sort(this.#sort);
         }
 
         // GROUP BY
@@ -215,13 +222,25 @@ class CSVDBQuery {
             iterator = [[...rows]];
         }
 
+        const distinctCache = [];
+
         // SELECT
         let i = 1;
         for (const row of iterator) {
             /** @type {RowObject[]} */
             const rowGroup = Array.isArray(row) ? row : [row];
 
-            yield mapSelectionToRow(rowGroup, this.#selection, i);
+            const result = this.#mapSelectionToRow(rowGroup, this.#selection, i);
+
+            if (this.#distinct) {
+                if (!isDistinct(distinctCache, result)) {
+                    continue;
+                }
+
+                distinctCache.push(result);
+            }
+
+            yield result;
 
             // FETCH FIRST
             if (++i > this.#limit) {
@@ -234,6 +253,79 @@ class CSVDBQuery {
         if (!this.#selection) return false;
 
         return Object.values(this.#selection).some(isAggregate);
+    }
+
+    /**
+     * @param {RowObject[]} sourceRows
+     * @param {{ [alias: string]: string|((row: RowObject, index?: number) => any) }?} selection
+     * @param {number} index
+     */
+    #mapSelectionToRow (sourceRows, selection, index) {
+        const out = {};
+
+        const firstRow = sourceRows[0];
+
+        if (!selection) {
+            return firstRow;
+        }
+
+        for (const [alias, col] of Object.entries(selection)) {
+
+            if (col instanceof Function) {
+                out[alias] = col(firstRow, index);
+            }
+            else {
+                const aggregateMatch = /^([A-Z]{3,5})\((.*)\)$/.exec(col);
+                if (aggregateMatch) {
+                    const fnName = aggregateMatch[1];
+                    const colName = aggregateMatch[2];
+
+                    const values = sourceRows.map(row => row[colName]);
+
+                    let value;
+
+                    if (fnName === "SUM") {
+                        value = values.reduce((total, v) => total + +v, 0);
+                    }
+                    else if (fnName === "AVG") {
+                        value = values.reduce((total, v) => total + +v, 0) / values.length;
+                    }
+                    else if (fnName === "MAX") {
+                        value = Math.max(...values);
+                    }
+                    else if (fnName === "MIN") {
+                        value = Math.min(...values);
+                    }
+                    else if (fnName === "COUNT") {
+                        value = values.length;
+                    }
+                    else if (fnName === "AGG") {
+                        value = values.join();
+                    }
+                    else if (fnName === "ARRAY") {
+                        value = values;
+                    }
+                    else if (fnName === "JSON") {
+                        value = JSON.stringify(values);
+                    }
+                    else if (fnName === "ANY") {
+                        value = values[0];
+                    }
+
+                    out[alias] = value;
+                }
+                else if (firstRow) {
+                    if (col === "*") {
+                        Object.assign(out, firstRow);
+                    }
+                    else {
+                        out[alias] = firstRow[col];
+                    }
+                }
+            }
+        }
+
+        return out;
     }
 }
 
@@ -273,78 +365,7 @@ function groupRows (rows, discriminator) {
     return [...resultSet.values()];
 }
 
-const isAggregate = (/** @type {string|((row: {}) => any)} */ col) => typeof col === "string" && /^[A-Z]{3,5}\(.*\)$/.test(col);
-
-/**
- * @param {RowObject[]} sourceRows
- * @param {{ [alias: string]: string|((row: RowObject, index?: number) => any) }?} selection
- */
-function mapSelectionToRow (sourceRows, selection, index) {
-    const out = {};
-
-    const firstRow = sourceRows[0];
-
-    if (!selection) {
-        return firstRow;
-    }
-
-    for (const [alias, col] of Object.entries(selection)) {
-
-        if (col instanceof Function) {
-            out[alias] = col(firstRow, index);
-        }
-        else {
-            const aggregateMatch = /^([A-Z]{3,5})\((.*)\)$/.exec(col);
-            if (aggregateMatch) {
-                const fnName = aggregateMatch[1];
-                const colName = aggregateMatch[2];
-                const values = sourceRows.map(row => row[colName]);
-
-                let value;
-
-                if (fnName === "SUM") {
-                    value = values.reduce((total, v) => total + +v, 0);
-                }
-                else if (fnName === "AVG") {
-                    value = values.reduce((total, v) => total + +v, 0) / values.length;
-                }
-                else if (fnName === "MAX") {
-                    value = Math.max(...values);
-                }
-                else if (fnName === "MIN") {
-                    value = Math.min(...values);
-                }
-                else if (fnName === "COUNT") {
-                    value = values.length;
-                }
-                else if (fnName === "AGG") {
-                    value = values.join();
-                }
-                else if (fnName === "ARRAY") {
-                    value = values;
-                }
-                else if (fnName === "JSON") {
-                    value = JSON.stringify(values);
-                }
-                else if (fnName === "ANY") {
-                    value = values[0];
-                }
-
-                out[alias] = value;
-            }
-            else if (firstRow) {
-                if (col === "*") {
-                    Object.assign(out, firstRow);
-                }
-                else {
-                    out[alias] = firstRow[col];
-                }
-            }
-        }
-    }
-
-    return out;
-}
+const isAggregate = (/** @type {string|((row: {}) => any)} */ col) => typeof col === "string" && /^[A-Z]{3,5}\(.*\)/.test(col);
 
 /**
  * @param {string} line
@@ -376,4 +397,25 @@ function *filter (iterable, predicate) {
             yield item;
         }
     }
+}
+
+/**
+ * @param {RowObject[]} rows
+ * @param {RowObject} row
+ */
+function isDistinct (rows, row) {
+    return rows.every(rowB => !isSame(row, rowB));
+}
+
+/**
+ * @param {RowObject} rowA
+ * @param {RowObject} rowB
+ */
+function isSame (rowA, rowB) {
+    const keysA = Object.keys(rowA);
+    const keysB = Object.keys(rowB);
+
+    if (keysA.length !== keysB.length) return false;
+
+    return keysA.every(key => rowA[key] === rowB[key]);
 }
