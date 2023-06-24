@@ -1,4 +1,7 @@
 {
+  "name": "csvdb.js",
+  "module": "./csvdb.js",
+  "version": "0.0.1",
   "type": "module",
   "scripts": {
     "build": "terser ./csvdb.js -c -m --module -o build/csvdb.min.js",

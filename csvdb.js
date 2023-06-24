@@ -1,6 +1,10 @@
-/** @typedef {{}} RowObject */
+/**
+ * @typedef {import("./csvdb").RowObject} RowObject
+ */
 
-/** @typedef {{ partitionBy?: (row: RowObject) => any, orderBy?: (rowA: RowObject, rowB: RowObject) => number, framing?: [unit:"rows"|"range",start:string|number,end:string|number] }} WindowSpec */
+/**
+ * @typedef {import("./csvdb").WindowSpec} WindowSpec
+ */
 
 export class CSVDB
 {
