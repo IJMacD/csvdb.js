@@ -33,7 +33,7 @@
         <main>
 
             <h1>Features</h1>
-            <p>Examples of supported features.</p>
+            <p>Examples of supported features. See also <a href="./demo.html">demo.html</a> for more examples.</p>
 
             <h2>Source Data</h2>
             <p>
@@ -291,7 +291,7 @@ console.table(results.toArray());</code></p>
             </p>
             <p class="code"><code>const db2 = new CSVDB("i,j,k\n2,4,6\n3,6,9");
 const results = db.query()
-    .joinOn(db2.query(), (rowA, rowB) => rowA.c === rowB.i || rowA.a === rowB.j;
+    .joinOn(db2, (rowA, rowB) => rowA.b === rowB.i || rowA.c === rowB.i || rowA.a === rowB.j;
 console.table(results.toArray());</code></p>
             <output id="output-join-on"></output>
             <script type="module">
@@ -299,7 +299,7 @@ console.table(results.toArray());</code></p>
                 const db = new CSVDB("a,b,c\n1,2,3\n4,5,6");
                 const db2 = new CSVDB("i,j,k\n2,4,6\n3,6,9");
                 const results = db.query()
-                    .joinOn(db2.query(), (rowA, rowB) => rowA.c === rowB.i || rowA.a === rowB.j);
+                    .joinOn(db2, (rowA, rowB) => rowA.b === rowB.i || rowA.c === rowB.i || rowA.a === rowB.j);
                 output("#output-join-on", results.toArray());
             </script>
 
@@ -338,14 +338,17 @@ const db = new CSVDB("a,b,c\n1,2,3\n1,3,5\n4,5,6");
 const results = db.query()
     .window("win1", {
         partitionBy:    row => row.a
+    })
+    .window("win2", {
+        partitionBy:    row => row.a
         orderBy:        (rowA, rowB) => rowA.b.localeCompare(rowB.b),
         framing:        ["rows", Number.NEGATIVE_INFINITY, 0],
     })
     .select({
         "*": "*",
         count: "COUNT(*) OVER win1",
-        rank: "RANK() OVER win1",
-        list: "AGG(c) OVER win1",
+        rank: "RANK() OVER win2",
+        list: "AGG(c) OVER win2",
     });
 console.table(results.toArray());</code></p>
             <output id="output-window"></output>
@@ -355,14 +358,17 @@ console.table(results.toArray());</code></p>
                 const results = db.query()
                     .window("win1", {
                         partitionBy:    row => row.a,
+                    })
+                    .window("win2", {
+                        partitionBy:    row => row.a,
                         orderBy:        (rowA, rowB) => rowA.b.localeCompare(rowB.b),
                         framing:        ["rows", Number.NEGATIVE_INFINITY, 0],
                     })
                     .select({
                         "*": "*",
                         count: "COUNT(*) OVER win1",
-                        rank: "RANK() OVER win1",
-                        list: "AGG(c) OVER win1",
+                        rank: "RANK() OVER win2",
+                        list: "AGG(c) OVER win2",
                     });
                 output("#output-window", results.toArray());
             </script>
@@ -391,6 +397,71 @@ console.table(results.toArray());</code></p>
                    "CURRENT ROW" |
                    "UNBOUNDED FOLLOWING"</code>
             </p>
+
+            <h2>Set Operations</h2>
+            <p>
+                Set operations are performed with static methods on the CSVDB class.
+                They return a Query object just like other methods so can be directly
+                used in other queries.
+                These are the DBs used in the following examples.</p>
+            <p class="code"><code>const db = new CSVDB("a,b,c\n1,2,3\n4,5,6");
+const db2 = new CSVDB("a,b,c\n,1,2,3\n1,3,5");</code></p>
+            <output id="output-sets"></output>
+            <script type="module">
+                import { CSVDB } from "./csvdb.js";
+                const db  = new CSVDB("a,b,c\n1,2,3\n4,5,6");
+                const db2 = new CSVDB("a,b,c\n1,2,3\n1,3,5");
+                output("#output-sets", db.query().toArray());
+                output("#output-sets", db2.query().toArray());
+            </script>
+
+            <h3>Except</h3>
+            <p class="code"><code>const results = CSVDB.except(db, db2);
+console.table(results.toArray());</code></p>
+            <output id="output-except"></output>
+            <script type="module">
+                import { CSVDB } from "./csvdb.js";
+                const db  = new CSVDB("a,b,c\n1,2,3\n4,5,6");
+                const db2 = new CSVDB("a,b,c\n1,2,3\n1,3,5");
+                const results = CSVDB.except(db, db2);
+                output("#output-except", results.toArray());
+            </script>
+
+            <h3>Intersect</h3>
+            <p class="code"><code>const results = CSVDB.intersect(db, db2);
+console.table(results.toArray());</code></p>
+            <output id="output-intersect"></output>
+            <script type="module">
+                import { CSVDB } from "./csvdb.js";
+                const db  = new CSVDB("a,b,c\n1,2,3\n4,5,6");
+                const db2 = new CSVDB("a,b,c\n1,2,3\n1,3,5");
+                const results = CSVDB.intersect(db, db2);
+                output("#output-intersect", results.toArray());
+            </script>
+
+            <h3>Union</h3>
+            <p class="code"><code>const results = CSVDB.union(db, db2);
+console.table(results.toArray());</code></p>
+            <output id="output-union"></output>
+            <script type="module">
+                import { CSVDB } from "./csvdb.js";
+                const db  = new CSVDB("a,b,c\n1,2,3\n4,5,6");
+                const db2 = new CSVDB("a,b,c\n1,2,3\n1,3,5");
+                const results = CSVDB.union(db, db2);
+                output("#output-union", results.toArray());
+            </script>
+
+            <h3>Union All</h3>
+            <p class="code"><code>const results = CSVDB.unionAll(db, db2);
+console.table(results.toArray());</code></p>
+            <output id="output-union-all"></output>
+            <script type="module">
+                import { CSVDB } from "./csvdb.js";
+                const db  = new CSVDB("a,b,c\n1,2,3\n4,5,6");
+                const db2 = new CSVDB("a,b,c\n1,2,3\n1,3,5");
+                const results = CSVDB.unionAll(db, db2);
+                output("#output-union-all", results.toArray());
+            </script>
         </main>
     </body>
 </html>
