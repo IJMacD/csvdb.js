@@ -1,0 +1,11 @@
+{
+  "type": "module",
+  "scripts": {
+    "build": "terser ./csvdb.js -c -m --module -o build/csvdb.min.js",
+    "deploy": "gh-pages -d build"
+  },
+  "dependencies": {
+    "gh-pages": "^5.0.0",
+    "terser": "^5.18.1"
+  }
+}
