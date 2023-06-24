@@ -315,12 +315,82 @@ const results2 = db.query().distinct();
 console.table(results2.toArray());</code></p>
             <output id="output-distinct"></output>
             <script type="module">
-                import { CSVDB } from "./csvdb.js";const db = new CSVDB("a,b,c\n1,2,3\n1,2,3\n4,5,6");
+                import { CSVDB } from "./csvdb.js";
+                const db = new CSVDB("a,b,c\n1,2,3\n1,2,3\n4,5,6");
                 const results = db.query();
                 output("#output-distinct", results.toArray());
                 const results2 = db.query().distinct();
                 output("#output-distinct", results2.toArray());
             </script>
+
+            <h2>WINDOW</h2>
+            <p>
+                The <code>OVER</code> clause is supported with window functions
+                but only with named windows. Use the <code>.window()</code>
+                method to specify named window specs.
+                Currently the only window function defined (other than the
+                aggregate functions above) is the <code>RANK()</code> function,
+                but it is not a true rank function since it doesn't deal with
+                ties correctly.
+            </p>
+            <p class="code"><code>
+const db = new CSVDB("a,b,c\n1,2,3\n1,3,5\n4,5,6");
+const results = db.query()
+    .window("win1", {
+        partitionBy:    row => row.a
+        orderBy:        (rowA, rowB) => rowA.b.localeCompare(rowB.b),
+        framing:        ["rows", Number.NEGATIVE_INFINITY, 0],
+    })
+    .select({
+        "*": "*",
+        count: "COUNT(*) OVER win1",
+        rank: "RANK() OVER win1",
+        list: "AGG(c) OVER win1",
+    });
+console.table(results.toArray());</code></p>
+            <output id="output-window"></output>
+            <script type="module">
+                import { CSVDB } from "./csvdb.js";
+                const db = new CSVDB("a,b,c\n1,2,3\n1,3,5\n4,5,6");
+                const results = db.query()
+                    .window("win1", {
+                        partitionBy:    row => row.a,
+                        orderBy:        (rowA, rowB) => rowA.b.localeCompare(rowB.b),
+                        framing:        ["rows", Number.NEGATIVE_INFINITY, 0],
+                    })
+                    .select({
+                        "*": "*",
+                        count: "COUNT(*) OVER win1",
+                        rank: "RANK() OVER win1",
+                        list: "AGG(c) OVER win1",
+                    });
+                output("#output-window", results.toArray());
+            </script>
+            <p>
+                The framing spec is illustrated below.
+                <code>&lt;ROWS PRECEDING&gt;</code> and
+                <code>&lt;ROWS FOLLOWING&gt;</code> can both be any positive or
+                negative number, or they can be 0 for the current row.
+                Negative numbers mean rows before the current row and positive
+                numbers are rows following the current one.
+                The examples below are just illustrative.
+                There are some predefined strings which are equivalent to
+                certain numeric values.
+                The default framing when an <code>orderBy</code> clause is
+                specified in the window spec is: <code>["rows", "UNBOUNDED PRECEDING", "CURRENT ROW"]</code>.
+            </p>
+            <p class="code"><code>["rows", &lt;ROWS PRECEDING&gt;, &lt;ROWS FOLLOWING&gt;]
+
+&lt;ROWS PRECEDING&gt; = 0 |
+                   Number.NEGATIVE_INFINITY |
+                   "CURRENT ROW" |
+                   "UNBOUNDED PRECEDING"
+
+&lt;ROWS FOLLOWING&gt; = 0 |
+                   Number.POSITIVE_INFINITY |
+                   "CURRENT ROW" |
+                   "UNBOUNDED FOLLOWING"</code>
+            </p>
         </main>
     </body>
 </html>

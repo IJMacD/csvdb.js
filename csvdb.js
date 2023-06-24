@@ -1,5 +1,7 @@
 /** @typedef {{}} RowObject */
 
+/** @typedef {{ partitionBy?: (row: RowObject) => any, orderBy?: (rowA: RowObject, rowB: RowObject) => number, framing?: [unit:"rows"|"range",start:string|number,end:string|number] }} WindowSpec */
+
 export class CSVDB
 {
     /** @type {string[]} */
@@ -47,6 +49,8 @@ class CSVDBQuery {
     #selection = null;
     /** @type {((rowA: RowObject, rowB: RowObject) => number)?} */
     #sort = null;
+    /** @type {Map<string, WindowSpec>} */
+    #windowSpecs = new Map();
 
     #limit = Number.POSITIVE_INFINITY;
 
@@ -167,6 +171,15 @@ class CSVDBQuery {
         return this;
     }
 
+    /**
+     * @param {string} name
+     * @param {WindowSpec} spec
+     */
+    window (name, spec) {
+        this.#windowSpecs.set(name, spec);
+        return this;
+    }
+
     distinct (distinct = true) {
         this.#distinct = distinct;
         return this;
@@ -211,26 +224,27 @@ class CSVDBQuery {
 
         // GROUP BY
         /** @type {Iterable<RowObject>|RowObject[][]} */
-        let iterator = rows;
+        let rowIterator = rows;
 
         if(this.#groupBy) {
             // groupRows() will materialise the rows
-            iterator = groupRows(rows, this.#groupBy);
+            rowIterator = groupRows(rows, this.#groupBy);
         }
         else if (this.#hasAggregates()) {
             // We're going to have to materialise the rows anyway so do it now
-            iterator = [[...rows]];
+            rowIterator = [[...rows]];
         }
 
         const distinctCache = [];
 
         // SELECT
         let i = 1;
-        for (const row of iterator) {
+        for (const row of rowIterator) {
             /** @type {RowObject[]} */
-            const rowGroup = Array.isArray(row) ? row : [row];
+            const rowGroup = Array.isArray(row) ? row : [...rowIterator];
+            const sourceRow = Array.isArray(row) ? rowGroup[0] : row;
 
-            const result = this.#mapSelectionToRow(rowGroup, this.#selection, i);
+            const result = this.#mapSelectionToRow(sourceRow, this.#selection, i, rowGroup);
 
             if (this.#distinct) {
                 if (!isDistinct(distinctCache, result)) {
@@ -256,31 +270,87 @@ class CSVDBQuery {
     }
 
     /**
-     * @param {RowObject[]} sourceRows
-     * @param {{ [alias: string]: string|((row: RowObject, index?: number) => any) }?} selection
+     * @param {RowObject} sourceRow
+     * @param {{ [alias: string]: string|((row: RowObject, index: number, groupRows: RowObject[]) => any) }?} selection
      * @param {number} index
+     * @param {RowObject[]} groupRows
      */
-    #mapSelectionToRow (sourceRows, selection, index) {
+    #mapSelectionToRow (sourceRow, selection, index, groupRows) {
         const out = {};
 
-        const firstRow = sourceRows[0];
-
         if (!selection) {
-            return firstRow;
+            return sourceRow;
         }
 
         for (const [alias, col] of Object.entries(selection)) {
 
             if (col instanceof Function) {
-                out[alias] = col(firstRow, index);
+                out[alias] = col(sourceRow, index, groupRows);
             }
             else {
-                const aggregateMatch = /^([A-Z]{3,5})\((.*)\)$/.exec(col);
+                const aggregateMatch = /^([A-Z]{3,5})\(([^)]*)\)(?:\s+OVER\s+([\w\d_]+))?$/.exec(col);
                 if (aggregateMatch) {
                     const fnName = aggregateMatch[1];
                     const colName = aggregateMatch[2];
+                    const windowName = aggregateMatch[3];
 
-                    const values = sourceRows.map(row => row[colName]);
+                    let rows = groupRows;
+
+                    if (windowName) {
+                        const windowSpec = this.#windowSpecs.get(windowName);
+
+                        if (!windowSpec) {
+                            throw Error (`Window "${windowName}" not specified`);
+                        }
+
+                        if (windowSpec.partitionBy) {
+                            const fn = windowSpec.partitionBy;
+                            const sympatheticValue = fn(sourceRow);
+                            rows = rows.filter(row => fn(row) === sympatheticValue);
+                        }
+
+                        if (windowSpec.orderBy) {
+                            rows.sort(windowSpec.orderBy);
+
+                            let framingStart = Number.NEGATIVE_INFINITY;
+                            let framingEnd = 0;
+
+                            if (windowSpec.framing) {
+                                if (windowSpec.framing[0] === "range") {
+                                    throw Error("Not Implemented: Window Spec RANGE");
+                                }
+
+                                if (typeof windowSpec.framing[1] === "number") {
+                                    framingStart = windowSpec.framing[1];
+                                }
+                                else if (windowSpec.framing[1] === "UNBOUNDED PRECEDING") {
+                                    framingStart = Number.NEGATIVE_INFINITY;
+                                }
+                                else if (windowSpec.framing[1] === "CURRENT ROW") {
+                                    framingStart = 0;
+                                }
+
+                                if (typeof windowSpec.framing[2] === "number") {
+                                    framingEnd = windowSpec.framing[2];
+                                }
+                                else if (windowSpec.framing[2] === "UNBOUNDED FOLLOWING") {
+                                    framingEnd = Number.POSITIVE_INFINITY;
+                                }
+                                else if (windowSpec.framing[2] === "CURRENT ROW") {
+                                    framingEnd = 0;
+                                }
+                            }
+
+                            const index = rows.indexOf(sourceRow);
+
+                            const startIndex = Math.max(index + framingStart, 0);
+                            const endIndex = index + framingEnd + 1;
+
+                            rows = rows.slice(startIndex, endIndex);
+                        }
+                    }
+
+                    let values = rows.map(row => row[colName]);
 
                     let value;
 
@@ -311,15 +381,18 @@ class CSVDBQuery {
                     else if (fnName === "ANY") {
                         value = values[0];
                     }
+                    else if (fnName === "RANK") {
+                        value = rows.indexOf(sourceRow) + 1;
+                    }
 
                     out[alias] = value;
                 }
-                else if (firstRow) {
+                else if (sourceRow) {
                     if (col === "*") {
-                        Object.assign(out, firstRow);
+                        Object.assign(out, sourceRow);
                     }
                     else {
-                        out[alias] = firstRow[col];
+                        out[alias] = sourceRow[col];
                     }
                 }
             }
@@ -365,7 +438,7 @@ function groupRows (rows, discriminator) {
     return [...resultSet.values()];
 }
 
-const isAggregate = (/** @type {string|((row: {}) => any)} */ col) => typeof col === "string" && /^[A-Z]{3,5}\(.*\)/.test(col);
+const isAggregate = (/** @type {string|((row: {}) => any)} */ col) => typeof col === "string" && /^[A-Z]{3,5}\(.*\)$/.test(col);
 
 /**
  * @param {string} line
