@@ -1,6 +1,10 @@
-/** @typedef {{}} RowObject */
+/**
+ * @typedef {import("./csvdb").RowObject} RowObject
+ */
 
-/** @typedef {{ partitionBy?: (row: RowObject) => any, orderBy?: (rowA: RowObject, rowB: RowObject) => number, framing?: [unit:"rows"|"range",start:string|number,end:string|number] }} WindowSpec */
+/**
+ * @typedef {import("./csvdb").WindowSpec} WindowSpec
+ */
 
 export class CSVDB
 {
@@ -19,7 +23,7 @@ export class CSVDB
     constructor (csv) {
         const [ headerLine, ...restLines ] = csv.trim().split("\n");
 
-        this.#headers = headerLine.trim().split(",");
+        this.#headers = parseCSVLine(headerLine);
 
         const rows = restLines.map(parseCSVLine);
 
@@ -55,7 +59,7 @@ export class CSVDB
      * @param {Iterable<RowObject>} resultsB
      */
     static union (resultsA, resultsB) {
-        return new CSVDBQuery(unionAll(resultsA, resultsB)).distinct();
+        return CSVDB.unionAll(resultsA, resultsB).distinct();
     }
 
     /**
@@ -71,7 +75,7 @@ class CSVDBQuery {
     /** @type {Iterable<RowObject>} */
     #rows;
 
-    /** @type {((row: RowObject) => RowObject[])[]} */
+    /** @type {((row: RowObject?) => RowObject[])[]} */
     #join = [];
     /** @type {((row: RowObject, index: number) => boolean)[]} */
     #where = [];
@@ -110,7 +114,9 @@ class CSVDBQuery {
      * fields from existing the row, but they don't have to.
      * Multiple joins can be added with multiple calls to the `join()` method
      * and will be executed in sequence.
-     * @param {(row: RowObject) => RowObject[]} join
+     * Note: the `join()` method will be called one extra time with the row set
+     * to `null`. This allows RIGHT JOIN and FULL OUTER JOIN to be implemented.
+     * @param {(row: RowObject?) => RowObject[]} join
      */
     join (join) {
         this.#join.push(join);
@@ -136,9 +142,11 @@ class CSVDBQuery {
 
             const out = [];
 
-            for (const rowB of otherCache) {
-                if (on(rowA, rowB)) {
-                    out.push({ ...rowA, ...rowB });
+            if (rowA){
+                for (const rowB of otherCache) {
+                    if (on(rowA, rowB)) {
+                        out.push({ ...rowA, ...rowB });
+                    }
                 }
             }
 
@@ -240,6 +248,8 @@ class CSVDBQuery {
                 newRows.push(...join(row))
             }
 
+            newRows.push(...join(null));
+
             rows = newRows;
         }
 
@@ -326,7 +336,7 @@ class CSVDBQuery {
                 out[alias] = col(sourceRow, index, groupRows);
             }
             else {
-                const aggregateMatch = /^([A-Z]{3,5})\(([^)]*)\)(?:\s+OVER\s+([\w\d_]+))?$/.exec(col);
+                const aggregateMatch = /^([A-Z]+)\(([^)]*)\)(?:\s+OVER\s+([\w\d_]+))?$/.exec(col);
                 if (aggregateMatch) {
                     const fnName = aggregateMatch[1];
                     const colName = aggregateMatch[2];
@@ -407,7 +417,7 @@ class CSVDBQuery {
                     else if (fnName === "COUNT") {
                         value = values.length;
                     }
-                    else if (fnName === "AGG") {
+                    else if (fnName === "LISTAGG") {
                         value = values.join();
                     }
                     else if (fnName === "ARRAY") {
@@ -476,13 +486,12 @@ function groupRows (rows, discriminator) {
     return [...resultSet.values()];
 }
 
-const isAggregate = (/** @type {string|((row: {}) => any)} */ col) => typeof col === "string" && /^[A-Z]{3,5}\(.*\)$/.test(col);
+const isAggregate = (/** @type {string|((row: {}) => any)} */ col) => typeof col === "string" && /^[A-Z]+\(.*\)$/.test(col);
 
 /**
  * @param {string} line
  */
 function parseCSVLine (line) {
-    // line => line.trim().split(",").map(cell => cell.replace(/^"|"$/g,""))
     line = line.trim();
     const matches = line.matchAll(/([^",]*|"[^"]*")(,|$)/g);
 
@@ -492,7 +501,7 @@ function parseCSVLine (line) {
         m.length--;
     }
 
-    return m.map(match => match[1].replace(/^"|"$/g, ""));
+    return m.map(match => match[1].trim().replace(/^"|"$/g, ""));
 }
 
 /**
