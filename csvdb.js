@@ -23,7 +23,7 @@ export class CSVDB
     constructor (csv) {
         const [ headerLine, ...restLines ] = csv.trim().split("\n");
 
-        this.#headers = headerLine.trim().split(",");
+        this.#headers = parseCSVLine(headerLine);
 
         const rows = restLines.map(parseCSVLine);
 
@@ -59,7 +59,7 @@ export class CSVDB
      * @param {Iterable<RowObject>} resultsB
      */
     static union (resultsA, resultsB) {
-        return new CSVDBQuery(unionAll(resultsA, resultsB)).distinct();
+        return CSVDB.unionAll(resultsA, resultsB).distinct();
     }
 
     /**
@@ -486,7 +486,6 @@ const isAggregate = (/** @type {string|((row: {}) => any)} */ col) => typeof col
  * @param {string} line
  */
 function parseCSVLine (line) {
-    // line => line.trim().split(",").map(cell => cell.replace(/^"|"$/g,""))
     line = line.trim();
     const matches = line.matchAll(/([^",]*|"[^"]*")(,|$)/g);
 
@@ -496,7 +495,7 @@ function parseCSVLine (line) {
         m.length--;
     }
 
-    return m.map(match => match[1].replace(/^"|"$/g, ""));
+    return m.map(match => match[1].trim().replace(/^"|"$/g, ""));
 }
 
 /**
