@@ -374,8 +374,8 @@ console.table(results.toArray());</code></p>
             </script>
             <p>
                 The framing spec is illustrated below.
-                <code>&lt;ROWS PRECEDING&gt;</code> and
-                <code>&lt;ROWS FOLLOWING&gt;</code> can both be any positive or
+                <code>&lt;FRAME START&gt;</code> and
+                <code>&lt;FRAME END&gt;</code> can both be any positive or
                 negative number, or they can be 0 for the current row.
                 Negative numbers mean rows before the current row and positive
                 numbers are rows following the current one.
@@ -385,14 +385,14 @@ console.table(results.toArray());</code></p>
                 The default framing when an <code>orderBy</code> clause is
                 specified in the window spec is: <code>["rows", "UNBOUNDED PRECEDING", "CURRENT ROW"]</code>.
             </p>
-            <p class="code"><code>["rows", &lt;ROWS PRECEDING&gt;, &lt;ROWS FOLLOWING&gt;]
+            <p class="code"><code>["rows", &lt;FRAME START&gt;, &lt;FRAME END&gt;]
 
-&lt;ROWS PRECEDING&gt; = 0 |
+&lt;FRAME START&gt; = 0 |
                    Number.NEGATIVE_INFINITY |
                    "CURRENT ROW" |
                    "UNBOUNDED PRECEDING"
 
-&lt;ROWS FOLLOWING&gt; = 0 |
+&lt;FRAME END&gt; = 0 |
                    Number.POSITIVE_INFINITY |
                    "CURRENT ROW" |
                    "UNBOUNDED FOLLOWING"</code>
