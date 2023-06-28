@@ -12,7 +12,7 @@ export class CSVDB {
 declare class CSVDBQuery {
     constructor (rows: Iterable<RowObject>);
     query (): CSVDBQuery;
-    join (join: (row: RowObject) => RowObject[]): CSVDBQuery;
+    join (join: (row: RowObject?) => RowObject[]): CSVDBQuery;
     joinOn (other: Iterable<RowObject>, on: ((rowA: RowObject, rowB: RowObject) => boolean)): CSVDBQuery;
     where (predicate: (row: RowObject) => boolean): CSVDBQuery;
     groupBy (discriminator: (row: RowObject) => any): CSVDBQuery;

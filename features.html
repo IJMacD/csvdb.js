@@ -323,10 +323,14 @@ console.table(results.toArray());</code></p>
                 more rows representing the join.
                 Multiple calls to <code>.join()</code> allow multiple joins to
                 be calculated.
+                <em>Note: The <code>join</code> function is called once per
+                input row and then once more with a <code>null</code>. This
+                setup allows implementation of any join (INNER JOIN, LEFT JOIN,
+                RIGHT JOIN, FULL OUTER JOIN, CROSS JOIN, NATURAL JOIN etc.)</em>
             </p>
             <p class="code"><code>const results = db.query()
     .join(row => {
-        return Array.from({length: +row.a}).map((_,i) => ({ ...row, z: i });
+        return row ? Array.from({length: +row.a}).map((_,i) => ({ ...row, z: i }) : [];
     });
 console.table(results.toArray());</code></p>
             <output id="output-join"></output>
@@ -335,7 +339,7 @@ console.table(results.toArray());</code></p>
                 const db = new CSVDB("a,b,c\n1,2,3\n4,5,6");
                 const results = db.query()
                     .join(row => {
-                        return Array.from({length: +row.a}).map((_,i) => ({ ...row, z: i }));
+                        return row ? Array.from({length: +row.a}).map((_,i) => ({ ...row, z: i })) : [];
                     });
                 output("#output-join", results.toArray());
             </script>
