@@ -17,6 +17,14 @@ export class CSVDB
         return this.#rows.length;
     }
 
+    get headers () {
+        return this.#headers;
+    }
+
+    get nullRow () {
+        return Object.fromEntries(this.#headers.map(header => [header, null]));
+    }
+
     /**
      * @param {string} csv
      */

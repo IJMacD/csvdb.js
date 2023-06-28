@@ -5,13 +5,17 @@
         <script>
             function output (target, data) {
                 let html;
+                if (typeof data === "string") {
+                    document.querySelector(target).innerHTML += `<p>${data.replace("<","&lt;")}</p>`;
+                    return;
+                }
                 if (data.length === 0) {
                     html = `<p>No rows returned</p>`;
                 }
                 else {
                     const headers = Object.keys(data[0]);
                     const headerRow = `<tr>${headers.map(h=>`<th>${h}</th>`).join("")}</tr>`;
-                    const dataRows = data.map(row=>`<tr>${Object.values(row).map(c=>`<td>${c}</td>`).join("")}</tr>`).join("");
+                    const dataRows = data.map(row=>`<tr>${headers.map(h=>`<td>${row[h]===null?`<em style="color:#CCC;">NULL</em>`:row[h]}</td>`).join("")}</tr>`).join("");
                     html = `<table>${headerRow}${dataRows}</table>`;
                 }
                 document.querySelector(target).innerHTML += html;
@@ -363,6 +367,165 @@ console.table(results.toArray());</code></p>
                 const results = db.query()
                     .joinOn(db2, (rowA, rowB) => rowA.b === rowB.i || rowA.c === rowB.i || rowA.a === rowB.j);
                 output("#output-join-on", results.toArray());
+            </script>
+
+            <h3>JOIN Examples</h3>
+            <p>
+                Below are some examples demonstrating implementation of
+                different joins. The tables used are shown here.
+            </p>
+            <p class="code"><code>const db = new CSVDB("owner,animal\ntom,cat\ndick,dog\nharry,bird");
+const db2 = new CSVDB("animal,family\ncat,feline\ndog,canine\nhorse,equine");</code></p>
+            <output id="output-example-joins"></output>
+            <script type="module">
+                import { CSVDB } from "./csvdb.js";
+                const db = new CSVDB("owner,animal\ntom,cat\ndick,dog\nharry,bird");
+                const db2 = new CSVDB("animal,family\ncat,feline\ndog,canine\nhorse,equine");
+                output("#output-example-joins", db.query().toArray());
+                output("#output-example-joins", db2.query().toArray());
+            </script>
+
+            <h3>INNER JOIN</h3>
+            <p class="code"><code>const db = new CSVDB("owner,animal\ntom,cat\ndick,dog\nharry,bird");
+const db2 = new CSVDB("animal,family\ncat,feline\ndog,canine\nhorse,equine");
+const query = db.query().join(rowA => {
+    // RIGHT
+    if (!rowA) return [];
+    // INNER
+    return db2.query().where(rowB => rowB.animal === rowA.animal).toArray().map(rowB => ({ ...rowA, ...rowB }));
+});</code></p>
+            <output id="output-example-inner-join"></output>
+            <script type="module">
+                import { CSVDB } from "./csvdb.js";
+                const db = new CSVDB("owner,animal\ntom,cat\ndick,dog\nharry,bird");
+                const db2 = new CSVDB("animal,family\ncat,feline\ndog,canine\nhorse,equine");
+                const query = db.query().join(rowA => {
+                    // RIGHT
+                    if (!rowA) return [];
+                    // INNER
+                    return db2.query().where(rowB => rowB.animal === rowA.animal).toArray().map(rowB => ({ ...rowA, ...rowB }));
+                });
+                output("#output-example-inner-join", query.toArray());
+            </script>
+
+            <h3>LEFT JOIN</h3>
+            <p class="code"><code>const db = new CSVDB("owner,animal\ntom,cat\ndick,dog\nharry,bird");
+const db2 = new CSVDB("animal,family\ncat,feline\ndog,canine\nhorse,equine");
+const query = db.query().join(rowA => {
+    // RIGHT
+    if (!rowA) return [];
+    // INNER
+    const rows = db2.query().where(rowB => rowB.animal === rowA.animal).toArray();
+    if (rows.length > 0) {
+        return rows.map(rowB => ({ ...rowA, ...rowB }));
+    }
+    // LEFT
+    return [{ ...db2.nullRow, ...rowA  }];
+});</code></p>
+            <output id="output-example-left-join"></output>
+            <script type="module">
+                import { CSVDB } from "./csvdb.js";
+                const db = new CSVDB("owner,animal\ntom,cat\ndick,dog\nharry,bird");
+                const db2 = new CSVDB("animal,family\ncat,feline\ndog,canine\nhorse,equine");
+                const query = db.query().join(rowA => {
+                    // RIGHT
+                    if (!rowA) return [];
+                    // INNER
+                    const rows = db2.query().where(rowB => rowB.animal === rowA.animal).toArray();
+                    if (rows.length > 0) {
+                        return rows.map(rowB => ({ ...rowA, ...rowB }));
+                    }
+                    // LEFT
+                    return [{ ...db2.nullRow, ...rowA  }];
+                });
+                output("#output-example-left-join", query.toArray());
+                // output("#output-example-left-join", JSON.stringify(query.toArray()));
+            </script>
+
+            <h3>RIGHT JOIN</h3>
+            <p class="code"><code>const db = new CSVDB("owner,animal\ntom,cat\ndick,dog\nharry,bird");
+const db2 = new CSVDB("animal,family\ncat,feline\ndog,canine\nhorse,equine");
+const set = new Set();
+const query = db.query().join(rowA => {
+    // RIGHT
+    if (!rowA) {
+        const innerSet = [...set];
+        return db2.query().where(rowB => !innerSet.includes(rowB.animal)).toArray().map(rowB => ({ ...db.nullRow, ...rowB }));
+    }
+    set.add(rowA.animal);
+    // INNER
+    const rows = db2.query().where(rowB => rowB.animal === rowA.animal).toArray();
+    if (rows.length > 0) {
+        return rows.map(rowB => ({ ...rowA, ...rowB }));
+    }
+    // LEFT
+    return [];
+});</code></p>
+            <output id="output-example-right-join"></output>
+            <script type="module">
+                import { CSVDB } from "./csvdb.js";
+                const db = new CSVDB("owner,animal\ntom,cat\ndick,dog\nharry,bird");
+                const db2 = new CSVDB("animal,family\ncat,feline\ndog,canine\nhorse,equine");
+                const set = new Set();
+                const query = db.query().join(rowA => {
+                    // RIGHT
+                    if (!rowA) {
+                        const innerSet = [...set];
+                        return db2.query().where(rowB => !innerSet.includes(rowB.animal)).toArray().map(rowB => ({ ...db.nullRow, ...rowB }));
+                    }
+                    set.add(rowA.animal);
+                    // INNER
+                    const rows = db2.query().where(rowB => rowB.animal === rowA.animal).toArray();
+                    if (rows.length > 0) {
+                        return rows.map(rowB => ({ ...rowA, ...rowB }));
+                    }
+                    // LEFT
+                    return [];
+                });
+                output("#output-example-right-join", query.toArray());
+            </script>
+
+            <h3>FULL JOIN</h3>
+            <p class="code"><code>const db = new CSVDB("owner,animal\ntom,cat\ndick,dog\nharry,bird");
+const db2 = new CSVDB("animal,family\ncat,feline\ndog,canine\nhorse,equine");
+const set = new Set();
+const query = db.query().join(rowA => {
+    // RIGHT
+    if (!rowA) {
+        const innerSet = [...set];
+        return db2.query().where(rowB => !innerSet.includes(rowB.animal)).toArray().map(rowB => ({ ...db.nullRow, ...rowB }));
+    }
+    set.add(rowA.animal);
+    // INNER
+    const rows = db2.query().where(rowB => rowB.animal === rowA.animal).toArray();
+    if (rows.length > 0) {
+        return rows.map(rowB => ({ ...rowA, ...rowB }));
+    }
+    // LEFT
+    return [{ ...db2.nullRow, ...rowA  }];
+});</code></p>
+            <output id="output-example-full-join"></output>
+            <script type="module">
+                import { CSVDB } from "./csvdb.js";
+                const db = new CSVDB("owner,animal\ntom,cat\ndick,dog\nharry,bird");
+                const db2 = new CSVDB("animal,family\ncat,feline\ndog,canine\nhorse,equine");
+                const set = new Set();
+                const query = db.query().join(rowA => {
+                    // RIGHT
+                    if (!rowA) {
+                        const innerSet = [...set];
+                        return db2.query().where(rowB => !innerSet.includes(rowB.animal)).toArray().map(rowB => ({ ...db.nullRow, ...rowB }));
+                    }
+                    set.add(rowA.animal);
+                    // INNER
+                    const rows = db2.query().where(rowB => rowB.animal === rowA.animal).toArray();
+                    if (rows.length > 0) {
+                        return rows.map(rowB => ({ ...rowA, ...rowB }));
+                    }
+                    // LEFT
+                    return [{ ...db2.nullRow, ...rowA  }];
+                });
+                output("#output-example-full-join", query.toArray());
             </script>
 
             <h2>DISTINCT</h2>
