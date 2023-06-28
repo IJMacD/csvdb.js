@@ -323,10 +323,14 @@ console.table(results.toArray());</code></p>
                 more rows representing the join.
                 Multiple calls to <code>.join()</code> allow multiple joins to
                 be calculated.
+                <em>Note: The <code>join</code> function is called once per
+                input row and then once more with a <code>null</code>. This
+                setup allows implementation of any join (INNER JOIN, LEFT JOIN,
+                RIGHT JOIN, FULL OUTER JOIN, CROSS JOIN, NATURAL JOIN etc.)</em>
             </p>
             <p class="code"><code>const results = db.query()
     .join(row => {
-        return Array.from({length: +row.a}).map((_,i) => ({ ...row, z: i });
+        return row ? Array.from({length: +row.a}).map((_,i) => ({ ...row, z: i }) : [];
     });
 console.table(results.toArray());</code></p>
             <output id="output-join"></output>
@@ -335,7 +339,7 @@ console.table(results.toArray());</code></p>
                 const db = new CSVDB("a,b,c\n1,2,3\n4,5,6");
                 const results = db.query()
                     .join(row => {
-                        return Array.from({length: +row.a}).map((_,i) => ({ ...row, z: i }));
+                        return row ? Array.from({length: +row.a}).map((_,i) => ({ ...row, z: i })) : [];
                     });
                 output("#output-join", results.toArray());
             </script>
@@ -349,7 +353,7 @@ console.table(results.toArray());</code></p>
             </p>
             <p class="code"><code>const db2 = new CSVDB("i,j,k\n2,4,6\n3,6,9");
 const results = db.query()
-    .joinOn(db2, (rowA, rowB) => rowA.b === rowB.i || rowA.c === rowB.i || rowA.a === rowB.j;
+    .joinOn(db2, (rowA, rowB) => rowA.b === rowB.i || rowA.c === rowB.i || rowA.a === rowB.j);
 console.table(results.toArray());</code></p>
             <output id="output-join-on"></output>
             <script type="module">
@@ -392,7 +396,7 @@ console.table(results2.toArray());</code></p>
                 ties correctly.
             </p>
             <p class="code"><code>
-const db = new CSVDB("a,b,c\n1,2,3\n1,3,5\n4,5,6");
+const db = new CSVDB("a,b,c\n1,2,3\n1,3,5\n1,4,7\n4,5,6");
 const results = db.query()
     .window("win1", {
         partitionBy:    row => row.a
@@ -406,13 +410,13 @@ const results = db.query()
         "*": "*",
         count: "COUNT(*) OVER win1",
         rank: "RANK() OVER win2",
-        list: "AGG(c) OVER win2",
+        list: "LISTAGG(c) OVER win2",
     });
 console.table(results.toArray());</code></p>
             <output id="output-window"></output>
             <script type="module">
                 import { CSVDB } from "./csvdb.js";
-                const db = new CSVDB("a,b,c\n1,2,3\n1,3,5\n4,5,6");
+                const db = new CSVDB("a,b,c\n1,2,3\n1,3,5\n1,4,7\n4,5,6");
                 const results = db.query()
                     .window("win1", {
                         partitionBy:    row => row.a,
@@ -426,7 +430,7 @@ console.table(results.toArray());</code></p>
                         "*": "*",
                         count: "COUNT(*) OVER win1",
                         rank: "RANK() OVER win2",
-                        list: "AGG(c) OVER win2",
+                        list: "LISTAGG(c) OVER win2",
                     });
                 output("#output-window", results.toArray());
             </script>
@@ -446,14 +450,14 @@ console.table(results.toArray());</code></p>
             <p class="code"><code>["rows", &lt;FRAME START&gt;, &lt;FRAME END&gt;]
 
 &lt;FRAME START&gt; = 0 |
-                   Number.NEGATIVE_INFINITY |
-                   "CURRENT ROW" |
-                   "UNBOUNDED PRECEDING"
+                Number.NEGATIVE_INFINITY |
+                "CURRENT ROW" |
+                "UNBOUNDED PRECEDING"
 
-&lt;FRAME END&gt; = 0 |
-                   Number.POSITIVE_INFINITY |
-                   "CURRENT ROW" |
-                   "UNBOUNDED FOLLOWING"</code>
+&lt;FRAME END&gt;   = 0 |
+                Number.POSITIVE_INFINITY |
+                "CURRENT ROW" |
+                "UNBOUNDED FOLLOWING"</code>
             </p>
 
             <h2>Set Operations</h2>
