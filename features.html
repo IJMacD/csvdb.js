@@ -187,17 +187,17 @@ console.table(results.toArray());</code></p>
             <h3>Aggregate Functions</h3>
             <p>Standard aggregate functions are available as well as some non-standard ones. The result of <code>ARRAY()</code> is a JavaScript array; the rest produce primitive results.</p>
             <p class="code"><code>const results = db.query()
-    .select([
-        "COUNT(*)",
-        "MIN(a)",
-        "MAX(b)",
-        "SUM(c)",
-        "AVG(c)",
-        "AGG(a)",
-        "JSON(b)",
-        "ARRAY(c)",
-        "ANY(c)"
-    ]);
+.select([
+    "COUNT(*)",
+    "MIN(a)",
+    "MAX(b)",
+    "SUM(c)",
+    "AVG(c)",
+    "LISTAGG(a)",
+    "JSON(b)",
+    "ARRAY(c)",
+    "ANY(c)"
+]);
 console.table(results.toArray());</code></p>
             <output id="output-groupby-aggregate"></output>
             <script type="module">
@@ -210,12 +210,70 @@ console.table(results.toArray());</code></p>
                         "MAX(b)",
                         "SUM(c)",
                         "AVG(c)",
-                        "AGG(a)",
+                        "LISTAGG(a)",
                         "JSON(b)",
                         "ARRAY(c)",
                         "ANY(c)"
                     ]);
                 output("#output-groupby-aggregate", results.toArray());
+            </script>
+
+            <h3>Custom Aggregate Functions</h3>
+            <p>
+                Functions in the select object are passed three parameters
+                (<code>row, i, rows</code>). <code>row</code> is the current row
+                in the result set. <code>i</code> is the 1-based index of the
+                current row. <code>rows</code> is an array of all sibling rows
+                in the current group. It is therefore possible to define
+                arbitrary aggregate functions. For instance, the
+                <code>SUM(a)</code> aggregate function could be re-defined as
+                shown below. <em>Note: there's no way for <b>CSVDB</b> to know a
+                custom function on its own is supposed to be an aggregate
+                function. It is therefore necessary to include a GROUP BY
+                clause, or at least one built-in aggregate function to ensure
+                rows are grouped.</em>
+            </p>
+            <p class="code"><code>const results = db.query()
+    .select({
+        customSum: (row, i, rows) => rows.reduce((total, row) => total + +row.a, 0),
+    })
+    .groupBy(() => true);
+console.table(results.toArray());</code></p>
+            <output id="output-custom-aggregate"></output>
+            <script type="module">
+                import { CSVDB } from "./csvdb.js";
+                const db = new CSVDB("a,b,c\n1,2,3\n4,5,6");
+                const results = db.query()
+                    .select({
+                        customSum: (row, i, rows) => rows.reduce((total, row) => total + +row.a, 0),
+                    })
+                    .groupBy(() => true);
+                output("#output-custom-aggregate", results.toArray());
+            </script>
+
+            <h3>FILTER (WHERE …)</h3>
+            <p>
+                While it is not implemented directly, it is trivial to achieve
+                the same result with custom aggregate functions. For example,
+                the <code>rows</code> array can be filtered before being
+                reduced.
+            </p>
+            <p class="code"><code>const results = db.query()
+    .select({
+        customSumWithFilter: (row, i, rows) => rows.filter(row => row.b === "2").reduce((total, row) => total + +row.a, 0),
+    })
+    .groupBy(() => true);
+console.table(results.toArray());</code></p>
+            <output id="output-filter"></output>
+            <script type="module">
+                import { CSVDB } from "./csvdb.js";
+                const db = new CSVDB("a,b,c\n1,2,3\n4,5,6");
+                const results = db.query()
+                    .select({
+                        customSumWithFilter: (row, i, rows) => rows.filter(row => row.b === "2").reduce((total, row) => total + +row.a, 0),
+                    })
+                    .groupBy(() => true);
+                output("#output-filter", results.toArray());
             </script>
 
             <h2>ORDER BY</h2>
@@ -291,7 +349,7 @@ console.table(results.toArray());</code></p>
             </p>
             <p class="code"><code>const db2 = new CSVDB("i,j,k\n2,4,6\n3,6,9");
 const results = db.query()
-    .joinOn(db2, (rowA, rowB) => rowA.b === rowB.i || rowA.c === rowB.i || rowA.a === rowB.j;
+    .joinOn(db2, (rowA, rowB) => rowA.b === rowB.i || rowA.c === rowB.i || rowA.a === rowB.j);
 console.table(results.toArray());</code></p>
             <output id="output-join-on"></output>
             <script type="module">
@@ -334,7 +392,7 @@ console.table(results2.toArray());</code></p>
                 ties correctly.
             </p>
             <p class="code"><code>
-const db = new CSVDB("a,b,c\n1,2,3\n1,3,5\n4,5,6");
+const db = new CSVDB("a,b,c\n1,2,3\n1,3,5\n1,4,7\n4,5,6");
 const results = db.query()
     .window("win1", {
         partitionBy:    row => row.a
@@ -348,13 +406,13 @@ const results = db.query()
         "*": "*",
         count: "COUNT(*) OVER win1",
         rank: "RANK() OVER win2",
-        list: "AGG(c) OVER win2",
+        list: "LISTAGG(c) OVER win2",
     });
 console.table(results.toArray());</code></p>
             <output id="output-window"></output>
             <script type="module">
                 import { CSVDB } from "./csvdb.js";
-                const db = new CSVDB("a,b,c\n1,2,3\n1,3,5\n4,5,6");
+                const db = new CSVDB("a,b,c\n1,2,3\n1,3,5\n1,4,7\n4,5,6");
                 const results = db.query()
                     .window("win1", {
                         partitionBy:    row => row.a,
@@ -368,7 +426,7 @@ console.table(results.toArray());</code></p>
                         "*": "*",
                         count: "COUNT(*) OVER win1",
                         rank: "RANK() OVER win2",
-                        list: "AGG(c) OVER win2",
+                        list: "LISTAGG(c) OVER win2",
                     });
                 output("#output-window", results.toArray());
             </script>
@@ -388,14 +446,14 @@ console.table(results.toArray());</code></p>
             <p class="code"><code>["rows", &lt;FRAME START&gt;, &lt;FRAME END&gt;]
 
 &lt;FRAME START&gt; = 0 |
-                   Number.NEGATIVE_INFINITY |
-                   "CURRENT ROW" |
-                   "UNBOUNDED PRECEDING"
+                Number.NEGATIVE_INFINITY |
+                "CURRENT ROW" |
+                "UNBOUNDED PRECEDING"
 
-&lt;FRAME END&gt; = 0 |
-                   Number.POSITIVE_INFINITY |
-                   "CURRENT ROW" |
-                   "UNBOUNDED FOLLOWING"</code>
+&lt;FRAME END&gt;   = 0 |
+                Number.POSITIVE_INFINITY |
+                "CURRENT ROW" |
+                "UNBOUNDED FOLLOWING"</code>
             </p>
 
             <h2>Set Operations</h2>
