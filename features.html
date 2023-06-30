@@ -411,6 +411,7 @@ const query = db.query().join(rowA => {
             <h3>LEFT JOIN</h3>
             <p class="code"><code>const db = new CSVDB("owner,animal\ntom,cat\ndick,dog\nharry,bird");
 const db2 = new CSVDB("animal,family\ncat,feline\ndog,canine\nhorse,equine");
+const nullRow = db => Object.fromEntries(db.headers.map(header => [header, null]));
 const query = db.query().join(rowA => {
     // RIGHT
     if (!rowA) return [];
@@ -420,13 +421,14 @@ const query = db.query().join(rowA => {
         return rows.map(rowB => ({ ...rowA, ...rowB }));
     }
     // LEFT
-    return [{ ...db2.nullRow, ...rowA  }];
+    return [{ ...nullRow(db2), ...rowA  }];
 });</code></p>
             <output id="output-example-left-join"></output>
             <script type="module">
                 import { CSVDB } from "./csvdb.js";
                 const db = new CSVDB("owner,animal\ntom,cat\ndick,dog\nharry,bird");
                 const db2 = new CSVDB("animal,family\ncat,feline\ndog,canine\nhorse,equine");
+                const nullRow = db => Object.fromEntries(db.headers.map(header => [header, null]));
                 const query = db.query().join(rowA => {
                     // RIGHT
                     if (!rowA) return [];
@@ -436,7 +438,7 @@ const query = db.query().join(rowA => {
                         return rows.map(rowB => ({ ...rowA, ...rowB }));
                     }
                     // LEFT
-                    return [{ ...db2.nullRow, ...rowA  }];
+                    return [{ ...nullRow(db2), ...rowA  }];
                 });
                 output("#output-example-left-join", query.toArray());
                 // output("#output-example-left-join", JSON.stringify(query.toArray()));
@@ -445,12 +447,13 @@ const query = db.query().join(rowA => {
             <h3>RIGHT JOIN</h3>
             <p class="code"><code>const db = new CSVDB("owner,animal\ntom,cat\ndick,dog\nharry,bird");
 const db2 = new CSVDB("animal,family\ncat,feline\ndog,canine\nhorse,equine");
+const nullRow = db => Object.fromEntries(db.headers.map(header => [header, null]));
 const set = new Set();
 const query = db.query().join(rowA => {
     // RIGHT
     if (!rowA) {
         const innerSet = [...set];
-        return db2.query().where(rowB => !innerSet.includes(rowB.animal)).toArray().map(rowB => ({ ...db.nullRow, ...rowB }));
+        return db2.query().where(rowB => !innerSet.includes(rowB.animal)).toArray().map(rowB => ({ ...nullRow(db), ...rowB }));
     }
     set.add(rowA.animal);
     // INNER
@@ -466,12 +469,13 @@ const query = db.query().join(rowA => {
                 import { CSVDB } from "./csvdb.js";
                 const db = new CSVDB("owner,animal\ntom,cat\ndick,dog\nharry,bird");
                 const db2 = new CSVDB("animal,family\ncat,feline\ndog,canine\nhorse,equine");
+                const nullRow = db => Object.fromEntries(db.headers.map(header => [header, null]));
                 const set = new Set();
                 const query = db.query().join(rowA => {
                     // RIGHT
                     if (!rowA) {
                         const innerSet = [...set];
-                        return db2.query().where(rowB => !innerSet.includes(rowB.animal)).toArray().map(rowB => ({ ...db.nullRow, ...rowB }));
+                        return db2.query().where(rowB => !innerSet.includes(rowB.animal)).toArray().map(rowB => ({ ...nullRow(db), ...rowB }));
                     }
                     set.add(rowA.animal);
                     // INNER
@@ -488,12 +492,13 @@ const query = db.query().join(rowA => {
             <h3>FULL JOIN</h3>
             <p class="code"><code>const db = new CSVDB("owner,animal\ntom,cat\ndick,dog\nharry,bird");
 const db2 = new CSVDB("animal,family\ncat,feline\ndog,canine\nhorse,equine");
+const nullRow = db => Object.fromEntries(db.headers.map(header => [header, null]));
 const set = new Set();
 const query = db.query().join(rowA => {
     // RIGHT
     if (!rowA) {
         const innerSet = [...set];
-        return db2.query().where(rowB => !innerSet.includes(rowB.animal)).toArray().map(rowB => ({ ...db.nullRow, ...rowB }));
+        return db2.query().where(rowB => !innerSet.includes(rowB.animal)).toArray().map(rowB => ({ ...nullRow(db), ...rowB }));
     }
     set.add(rowA.animal);
     // INNER
@@ -502,19 +507,20 @@ const query = db.query().join(rowA => {
         return rows.map(rowB => ({ ...rowA, ...rowB }));
     }
     // LEFT
-    return [{ ...db2.nullRow, ...rowA  }];
+    return [{ ...nullRow(db2), ...rowA  }];
 });</code></p>
             <output id="output-example-full-join"></output>
             <script type="module">
                 import { CSVDB } from "./csvdb.js";
                 const db = new CSVDB("owner,animal\ntom,cat\ndick,dog\nharry,bird");
                 const db2 = new CSVDB("animal,family\ncat,feline\ndog,canine\nhorse,equine");
+                const nullRow = db => Object.fromEntries(db.headers.map(header => [header, null]));
                 const set = new Set();
                 const query = db.query().join(rowA => {
                     // RIGHT
                     if (!rowA) {
                         const innerSet = [...set];
-                        return db2.query().where(rowB => !innerSet.includes(rowB.animal)).toArray().map(rowB => ({ ...db.nullRow, ...rowB }));
+                        return db2.query().where(rowB => !innerSet.includes(rowB.animal)).toArray().map(rowB => ({ ...nullRow(db), ...rowB }));
                     }
                     set.add(rowA.animal);
                     // INNER
@@ -523,7 +529,7 @@ const query = db.query().join(rowA => {
                         return rows.map(rowB => ({ ...rowA, ...rowB }));
                     }
                     // LEFT
-                    return [{ ...db2.nullRow, ...rowA  }];
+                    return [{ ...nullRow(db2), ...rowA  }];
                 });
                 output("#output-example-full-join", query.toArray());
             </script>
