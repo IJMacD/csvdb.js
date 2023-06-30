@@ -1,6 +1,7 @@
 export class CSVDB {
     constructor (csvText: string);
     get rowCount(): number;
+    get headers(): string[];
     [Symbol.iterator](): Generator<RowObject>;
     query(): CSVDBQuery;
     static except (resultsA: Iterable<RowObject>, resultsB: Iterable<RowObject>): Iterable<RowObject>;

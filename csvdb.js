@@ -17,6 +17,10 @@ export class CSVDB
         return this.#rows.length;
     }
 
+    get headers () {
+        return this.#headers;
+    }
+
     /**
      * @param {string} csv
      */
