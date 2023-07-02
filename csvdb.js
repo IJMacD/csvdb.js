@@ -436,6 +436,20 @@ class CSVDBQuery {
                     else if (fnName === "ROW_NUMBER") {
                         value = rows.indexOf(sourceRow) + 1;
                     }
+                    else if (fnName === "LEAD") {
+                        const index = rows.indexOf(sourceRow);
+                        value = values[index + 1] || null;
+                    }
+                    else if (fnName === "LAG") {
+                        const index = rows.indexOf(sourceRow);
+                        value = values[index - 1] || null;
+                    }
+                    else if (fnName === "FIRST_VALUE") {
+                        value = values[0];
+                    }
+                    else if (fnName === "LAST_VALUE") {
+                        value = values[values.length - 1];
+                    }
 
                     out[alias] = value;
                 }
