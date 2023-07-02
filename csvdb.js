@@ -340,7 +340,7 @@ class CSVDBQuery {
                 out[alias] = col(sourceRow, index, groupRows);
             }
             else {
-                const aggregateMatch = /^([A-Z]+)\(([^)]*)\)(?:\s+OVER\s+([\w\d_]+))?$/.exec(col);
+                const aggregateMatch = /^([A-Z_]+)\(([^)]*)\)(?:\s+OVER\s+([\w\d_]+))?$/.exec(col);
                 if (aggregateMatch) {
                     const fnName = aggregateMatch[1];
                     const colName = aggregateMatch[2];
@@ -433,7 +433,7 @@ class CSVDBQuery {
                     else if (fnName === "ANY") {
                         value = values[0];
                     }
-                    else if (fnName === "RANK") {
+                    else if (fnName === "ROW_NUMBER") {
                         value = rows.indexOf(sourceRow) + 1;
                     }
 

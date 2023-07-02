@@ -27,8 +27,8 @@
             table { border-collapse: collapse; margin-bottom: 1em; }
             th, td { padding: 0.25em 0.5em; }
             tbody tr:nth-child(2n) td { background-color: rgba(0, 0, 0, 0.05); }
-            .code { padding: 0.5em; border: 1px solid #DDD;  }
-            .code, code { background-color: #ECECEC;font-family: 'Courier New', Courier, monospace; white-space: pre; }
+            .code { padding: 0.5em; border: 1px solid #DDD; white-space: pre-wrap; }
+            .code, code { background-color: #ECECEC;font-family: 'Courier New', Courier, monospace; }
             output { display: block; margin-bottom: 0.5em; padding: 0.25em 0.5em; border: 1px solid #DDD; }
             output::before { content: "Output"; color: #CCC; font-size: 0.8em; font-weight: bold; display: block; margin-bottom: 1em; }
         </style>
@@ -560,9 +560,9 @@ console.table(results2.toArray());</code></p>
                 but only with named windows. Use the <code>.window()</code>
                 method to specify named window specs.
                 Currently the only window function defined (other than the
-                aggregate functions above) is the <code>RANK()</code> function,
-                but it is not a true rank function since it doesn't deal with
-                ties correctly.
+                aggregate functions above) is the <code>ROW_NUMBER()</code>
+                function which numbers rows in the current group/partition with
+                a 1-based index.
             </p>
             <p class="code"><code>
 const db = new CSVDB("a,b,c\n1,2,3\n1,3,5\n1,4,7\n4,5,6");
@@ -578,7 +578,7 @@ const results = db.query()
     .select({
         "*": "*",
         count: "COUNT(*) OVER win1",
-        rank: "RANK() OVER win2",
+        rowNumber: "ROW_NUMBER() OVER win2",
         list: "LISTAGG(c) OVER win2",
     });
 console.table(results.toArray());</code></p>
@@ -598,7 +598,7 @@ console.table(results.toArray());</code></p>
                     .select({
                         "*": "*",
                         count: "COUNT(*) OVER win1",
-                        rank: "RANK() OVER win2",
+                        rowNumber: "ROW_NUMBER() OVER win2",
                         list: "LISTAGG(c) OVER win2",
                     });
                 output("#output-window", results.toArray());
