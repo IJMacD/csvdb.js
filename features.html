@@ -628,54 +628,75 @@ console.table(results.toArray());</code></p>
                 "UNBOUNDED FOLLOWING"</code>
             </p>
 
-            <h3>Raking Functions</h3>
-            <p>
-                The following functions are defined.</p>
+            <h3>Position Functions</h3>
+            <p>The following position functions are defined.</p>
             <p class="code"><code>
-    const db = new CSVDB("a,b,c\n1,2,3\n1,3,5\n1,4,7\n4,5,6");
-    const results = db.query()
-        .window("win1", {
-            orderBy:        (rowA, rowB) => rowA.b.localeCompare(rowB.b),
-            framing:        ["rows", "UNBOUNDED PRECEDING", "UNBOUNDED FOLLOWING"],
-        })
-        .window("win2", {
-            partitionBy:    row => row.a,
-            orderBy:        (rowA, rowB) => rowA.b.localeCompare(rowB.b),
-            framing:        ["rows", "UNBOUNDED PRECEDING", "UNBOUNDED FOLLOWING"],
-        })
-        .select({
-            "*": "*",
-            rowNumber:  "ROW_NUMBER() OVER win1",
-            lag_b:      "LAG(b) OVER win1",
-            lead_c:     "LEAD(c) OVER win1",
-            first_b:    "FIRST_VALUE(b) OVER win2",
-            last_c:     "LAST_VALUE(c) OVER win2",
-        });
-    console.table(results.toArray());</code></p>
-                <output id="output-ranking"></output>
-                <script type="module">
-                    import { CSVDB } from "./csvdb.js";
-                    const db = new CSVDB("a,b,c\n1,2,3\n1,3,5\n1,4,7\n4,5,6");
-                    const results = db.query()
-                        .window("win1", {
-                            orderBy:        (rowA, rowB) => rowA.b.localeCompare(rowB.b),
-                            framing:        ["rows", "UNBOUNDED PRECEDING", "UNBOUNDED FOLLOWING"],
-                        })
-                        .window("win2", {
-                            partitionBy:    row => row.a,
-                            orderBy:        (rowA, rowB) => rowA.b.localeCompare(rowB.b),
-                            framing:        ["rows", "UNBOUNDED PRECEDING", "UNBOUNDED FOLLOWING"],
-                        })
-                        .select({
-                            "*": "*",
-                            rowNumber:  "ROW_NUMBER() OVER win1",
-                            lag_b:      "LAG(b) OVER win1",
-                            lead_c:     "LEAD(c) OVER win1",
-                            first_b:    "FIRST_VALUE(b) OVER win2",
-                            last_c:     "LAST_VALUE(c) OVER win2",
-                        });
-                    output("#output-ranking", results.toArray());
-                </script>
+const db = new CSVDB("a,b,c\n1,2,3\n1,3,5\n1,4,7\n4,5,6");
+const results = db.query()
+    .window("win1", {
+        orderBy:        (rowA, rowB) => rowA.b.localeCompare(rowB.b),
+        framing:        ["rows", "UNBOUNDED PRECEDING", "UNBOUNDED FOLLOWING"],
+    })
+    .window("win2", {
+        partitionBy:    row => row.a,
+        orderBy:        (rowA, rowB) => rowA.b.localeCompare(rowB.b),
+        framing:        ["rows", "UNBOUNDED PRECEDING", "UNBOUNDED FOLLOWING"],
+    })
+    .select({
+        "*": "*",
+        rowNumber:  "ROW_NUMBER() OVER win1",
+        lag_b:      "LAG(b) OVER win1",
+        lead_c:     "LEAD(c) OVER win1",
+        first_b:    "FIRST_VALUE(b) OVER win2",
+        last_c:     "LAST_VALUE(c) OVER win2",
+    });
+console.table(results.toArray());</code></p>
+            <output id="output-position"></output>
+            <script type="module">
+                import { CSVDB } from "./csvdb.js";
+                const db = new CSVDB("a,b,c\n1,2,3\n1,3,5\n1,4,7\n4,5,6");
+                const results = db.query()
+                    .window("win1", {
+                        orderBy:        (rowA, rowB) => rowA.b.localeCompare(rowB.b),
+                        framing:        ["rows", "UNBOUNDED PRECEDING", "UNBOUNDED FOLLOWING"],
+                    })
+                    .window("win2", {
+                        partitionBy:    row => row.a,
+                        orderBy:        (rowA, rowB) => rowA.b.localeCompare(rowB.b),
+                        framing:        ["rows", "UNBOUNDED PRECEDING", "UNBOUNDED FOLLOWING"],
+                    })
+                    .select({
+                        "*": "*",
+                        rowNumber:  "ROW_NUMBER() OVER win1",
+                        lag_b:      "LAG(b) OVER win1",
+                        lead_c:     "LEAD(c) OVER win1",
+                        first_b:    "FIRST_VALUE(b) OVER win2",
+                        last_c:     "LAST_VALUE(c) OVER win2",
+                    });
+                output("#output-position", results.toArray());
+            </script>
+
+            <h3>Empty Window</h3>
+            <p>A shortcut to specify an empty window.</p>
+            <p class="code"><code>
+const db = new CSVDB("a,b,c\n1,2,3\n1,3,5\n1,4,7\n4,5,6");
+const results = db.query()
+    .select({
+        "*": "*",
+        rowNumber:  "ROW_NUMBER() OVER ()",
+    });
+console.table(results.toArray());</code></p>
+            <output id="output-window-empty"></output>
+            <script type="module">
+                import { CSVDB } from "./csvdb.js";
+                const db = new CSVDB("a,b,c\n1,2,3\n1,3,5\n1,4,7\n4,5,6");
+                const results = db.query()
+                    .select({
+                        "*": "*",
+                        rowNumber:  "ROW_NUMBER() OVER ()",
+                    });
+                output("#output-window-empty", results.toArray());
+            </script>
 
 
             <h2>Set Operations</h2>

@@ -272,6 +272,14 @@ class CSVDBQuery {
         /** @type {Iterable<RowObject>|RowObject[][]} */
         let rowIterator = rows;
 
+        const haveWindowFunctions =
+            this.#windowSpecs.size > 0 ||
+            (
+                this.#selection &&
+                Object.values(this.#selection)
+                    .some(s => typeof s === "string" && s.endsWith(" OVER ()"))
+            );
+
         if(this.#groupBy) {
             // groupRows() will materialise the rows
             rowIterator = groupRows(rows, this.#groupBy);
@@ -280,7 +288,7 @@ class CSVDBQuery {
             // We're going to have to materialise the rows anyway so do it now
             rowIterator = [[...rows]];
         }
-        else if (this.#windowSpecs.size > 0) {
+        else if (haveWindowFunctions) {
             // Unfortunately we need to materialise the rows once to pass as the
             // 4th argument to mapSelectionToRow()
             rowIterator = [...rows];
@@ -293,7 +301,7 @@ class CSVDBQuery {
         for (const row of rowIterator) {
             /** @type {RowObject[]} */
             const rowGroup = Array.isArray(row) ? row :
-                (this.#windowSpecs.size === 0 ? [row] : /** @type {RowObject[]} */(rowIterator));
+                (haveWindowFunctions ? /** @type {RowObject[]} */(rowIterator) :  [row]);
             const sourceRow = Array.isArray(row) ? rowGroup[0] : row;
 
             const result = this.#mapSelectionToRow(sourceRow, this.#selection, i, rowGroup);
@@ -340,16 +348,19 @@ class CSVDBQuery {
                 out[alias] = col(sourceRow, index, groupRows);
             }
             else {
-                const aggregateMatch = /^([A-Z_]+)\(([^)]*)\)(?:\s+OVER\s+([\w\d_]+))?$/.exec(col);
+                const aggregateMatch = /^([A-Z_]+)\(([^)]*)\)(?:\s+OVER\s+([\w\d_]+|\(\)))?$/.exec(col);
                 if (aggregateMatch) {
                     const fnName = aggregateMatch[1];
                     const colName = aggregateMatch[2];
                     const windowName = aggregateMatch[3];
 
                     let rows = groupRows;
+                    let windowSpec;
 
                     if (windowName) {
-                        const windowSpec = this.#windowSpecs.get(windowName);
+                        windowSpec = windowName === "()" ?
+                            {} :
+                            this.#windowSpecs.get(windowName);
 
                         if (!windowSpec) {
                             throw Error (`Window "${windowName}" not specified`);
@@ -437,17 +448,21 @@ class CSVDBQuery {
                         value = rows.indexOf(sourceRow) + 1;
                     }
                     else if (fnName === "LEAD") {
+                        orderByCheck(windowSpec, "LEAD");
                         const index = rows.indexOf(sourceRow);
                         value = values[index + 1] || null;
                     }
                     else if (fnName === "LAG") {
+                        orderByCheck(windowSpec, "LAG");
                         const index = rows.indexOf(sourceRow);
                         value = values[index - 1] || null;
                     }
                     else if (fnName === "FIRST_VALUE") {
+                        orderByCheck(windowSpec, "FIRST_VALUE");
                         value = values[0];
                     }
                     else if (fnName === "LAST_VALUE") {
+                        orderByCheck(windowSpec, "LAST_VALUE");
                         value = values[values.length - 1];
                     }
 
@@ -466,6 +481,11 @@ class CSVDBQuery {
 
         return out;
     }
+}
+
+function orderByCheck (windowSpec, fnName) {
+    if (!windowSpec?.orderBy)
+        throw Error(`ORDER BY clause required in windows spec for ${fnName}`);
 }
 
 /**
@@ -504,7 +524,7 @@ function groupRows (rows, discriminator) {
     return [...resultSet.values()];
 }
 
-const isAggregate = (/** @type {string|((row: {}) => any)} */ col) => typeof col === "string" && /^[A-Z]+\(.*\)$/.test(col);
+const isAggregate = (/** @type {string|((row: {}) => any)} */ col) => typeof col === "string" && /^[A-Z]+\([^)]*\)$/.test(col);
 
 /**
  * @param {string} line
