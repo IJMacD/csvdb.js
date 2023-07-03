@@ -477,7 +477,12 @@ class CSVDBQuery {
                 }
                 else if (sourceRow) {
                     if (col === "*") {
-                        Object.assign(out, sourceRow);
+                        if (alias === "*") {
+                            Object.assign(out, sourceRow);
+                        }
+                        else {
+                            Object.assign(out, Object.fromEntries(Object.entries(sourceRow).map(([key,value]) => [`${alias}${key}`,value])));
+                        }
                     }
                     else {
                         out[alias] = sourceRow[col];

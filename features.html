@@ -136,10 +136,15 @@ console.table(results.toArray());</code></p>
             </script>
 
             <h3><code>SELECT *</code></h3>
-            <p><code>SELECT *</code> is supported.</p>
+            <p>
+                <code>SELECT *</code> is supported. If the alias is anything
+                other than <code>*</code>, then the alias is used as a prefix to
+                the columns.
+            </p>
             <p class="code"><code>const results = db.query().select({
     Date: () => new Date().toISOString(),
-    "doesn't matter": "*",
+    "*": "*",
+    "prefix_": "*",
 });
 console.table(results.toArray());</code></p>
             <output id="output-select-star"></output>
@@ -148,7 +153,8 @@ console.table(results.toArray());</code></p>
                 const db = new CSVDB("a,b,c\n1,2,3\n4,5,6");
                 const results = db.query().select({
                     Date: () => new Date().toISOString(),
-                    "doesn't matter": "*",
+                    "*": "*",
+                    "prefix_": "*",
                 });
                 output("#output-select-star", results);
             </script>
@@ -574,8 +580,7 @@ console.table(results2.toArray());</code></p>
                 numbers rows in the current group/partition with a 1-based
                 index.
             </p>
-            <p class="code"><code>
-const db = new CSVDB("a,b,c\n1,2,3\n1,3,5\n1,4,7\n4,5,6");
+            <p class="code"><code>const db = new CSVDB("a,b,c\n1,2,3\n1,3,5\n1,4,7\n4,5,6");
 const results = db.query()
     .window("win1", {
         partitionBy:    row => row.a
@@ -641,8 +646,7 @@ console.table(results.toArray());</code></p>
 
             <h3>Position Functions</h3>
             <p>The following position functions are defined.</p>
-            <p class="code"><code>
-const db = new CSVDB("a,b,c\n1,2,3\n1,3,5\n1,4,7\n4,5,6");
+            <p class="code"><code>const db = new CSVDB("a,b,c\n1,2,3\n1,3,5\n1,4,7\n4,5,6");
 const results = db.query()
     .window("win1", {
         orderBy:        (rowA, rowB) => rowA.b.localeCompare(rowB.b),
