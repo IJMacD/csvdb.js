@@ -351,7 +351,8 @@ class CSVDBQuery {
                 const aggregateMatch = /^([A-Z_]+)\(([^)]*)\)(?:\s+OVER\s+([\w\d_]+|\(\)))?$/.exec(col);
                 if (aggregateMatch) {
                     const fnName = aggregateMatch[1];
-                    const colName = aggregateMatch[2];
+                    const args = aggregateMatch[2].split(",");
+                    const colName = args[0];
                     const windowName = aggregateMatch[3];
 
                     let rows = groupRows;
@@ -450,12 +451,18 @@ class CSVDBQuery {
                     else if (fnName === "LEAD") {
                         orderByCheck(windowSpec, "LEAD");
                         const index = rows.indexOf(sourceRow);
-                        value = values[index + 1] || null;
+                        let delta = 1;
+                        if (args.length > 1)
+                            delta = +args[1];
+                        value = values[index + delta] || null;
                     }
                     else if (fnName === "LAG") {
                         orderByCheck(windowSpec, "LAG");
+                        let delta = 1;
+                        if (args.length > 1)
+                            delta = +args[1];
                         const index = rows.indexOf(sourceRow);
-                        value = values[index - 1] || null;
+                        value = values[index - delta] || null;
                     }
                     else if (fnName === "FIRST_VALUE") {
                         orderByCheck(windowSpec, "FIRST_VALUE");

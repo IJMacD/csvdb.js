@@ -646,7 +646,7 @@ const results = db.query()
         "*": "*",
         rowNumber:  "ROW_NUMBER() OVER win1",
         lag_b:      "LAG(b) OVER win1",
-        lead_c:     "LEAD(c) OVER win1",
+        lead_2c:    "LEAD(c, 2) OVER win1",
         first_b:    "FIRST_VALUE(b) OVER win2",
         last_c:     "LAST_VALUE(c) OVER win2",
     });
@@ -669,7 +669,7 @@ console.table(results.toArray());</code></p>
                         "*": "*",
                         rowNumber:  "ROW_NUMBER() OVER win1",
                         lag_b:      "LAG(b) OVER win1",
-                        lead_c:     "LEAD(c) OVER win1",
+                        lead_2c:    "LEAD(c, 2) OVER win1",
                         first_b:    "FIRST_VALUE(b) OVER win2",
                         last_c:     "LAST_VALUE(c) OVER win2",
                     });
