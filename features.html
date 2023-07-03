@@ -4,30 +4,42 @@
         <title>Features</title>
         <script>
             function output (target, data) {
-                let html;
                 if (typeof data === "string") {
                     document.querySelector(target).innerHTML += `<p>${data.replace("<","&lt;")}</p>`;
                     return;
                 }
+
+                let html;
+                try {
+                    if (!Array.isArray(data) && data[Symbol.iterator]) {
+                        data = [...data];
+                    }
+
                 if (data.length === 0) {
                     html = `<p>No rows returned</p>`;
                 }
                 else {
                     const headers = Object.keys(data[0]);
                     const headerRow = `<tr>${headers.map(h=>`<th>${h}</th>`).join("")}</tr>`;
-                    const dataRows = data.map(row=>`<tr>${headers.map(h=>`<td>${row[h]===null?`<em style="color:#CCC;">NULL</em>`:row[h]}</td>`).join("")}</tr>`).join("");
-                    html = `<table>${headerRow}${dataRows}</table>`;
+                    const dataRows = data.map(row=>`<tr>${headers.map(h=>`<td tabindex=0>${row[h]===null?`<em style="color:#CCC;">NULL</em>`:row[h]}</td>`).join("")}</tr>`).join("");
+                    html = `<table><thead>${headerRow}</thead><tbody>${dataRows}</tbody></table>`;
                 }
+                }
+                catch (e) {
+                    html = `<p style="color: red; font-family: 'Courier New', Courier, monospace; font-weight: bold;">${e.message}</p>`;
+                }
+
                 document.querySelector(target).innerHTML += html;
             }
         </script>
         <style>
             body { font-family: 'Lucida Sans', 'Lucida Sans Regular', 'Lucida Grande', 'Lucida Sans Unicode', Geneva, Verdana, sans-serif; }
             main { max-width: 1280px; margin: 0 auto; }
-            table { border-collapse: collapse; margin-bottom: 1em; }
-            th, td { padding: 0.25em 0.5em; }
-            tbody tr:nth-child(2n) td { background-color: rgba(0, 0, 0, 0.05); }
-            .code { padding: 0.5em; border: 1px solid #DDD; white-space: pre-wrap; }
+            table { border-collapse: collapse; margin-bottom: 1em; font-family: 'Microsoft Sans Serif', Arial, Helvetica, sans-serif; font-size: 10pt; outline: 1px solid #ABADB3; outline-offset: -1px; }
+            th { font-weight: normal; padding: 0.25em 0.4em; text-align: left; border: 1px solid #E5E5E5; }
+            td { padding: 0.25em 0.6em; border: 1px solid #F0F0F0; }
+            td:active, td:focus { outline: 1px dotted #000000; outline-offset: -1px; background-color: #E8EDF2; }
+            .code { padding: 0.5em; border: 1px solid #DDD; white-space: pre-wrap; word-break: break-all; }
             .code, code { background-color: #ECECEC;font-family: 'Courier New', Courier, monospace; }
             output { display: block; margin-bottom: 0.5em; padding: 0.25em 0.5em; border: 1px solid #DDD; }
             output::before { content: "Output"; color: #CCC; font-size: 0.8em; font-weight: bold; display: block; margin-bottom: 1em; }
@@ -79,7 +91,7 @@ console.table(results.toArray());</code></p>
                 import { CSVDB } from "./csvdb.js";
                 const db = new CSVDB("a,b,c\n1,2,3\n4,5,6");
                 const results = db.query().select(["c","a"]);
-                output("#output-simple-select", results.toArray());
+                output("#output-simple-select", results);
             </script>
 
             <h3>Aliases</h3>
@@ -97,7 +109,7 @@ console.table(results.toArray());</code></p>
                     lastColumn: "c",
                     secondColumn: "b",
                 });
-                output("#output-alias-select", results.toArray());
+                output("#output-alias-select", results);
             </script>
 
             <h3>Arbitrary Columns</h3>
@@ -120,7 +132,7 @@ console.table(results.toArray());</code></p>
                     "b squared": row => Math.pow(row.b, 2),
                     "a + b": row => +row.a + +row.b
                 });
-                output("#output-arbitrary-select", results.toArray());
+                output("#output-arbitrary-select", results);
             </script>
 
             <h3><code>SELECT *</code></h3>
@@ -138,7 +150,7 @@ console.table(results.toArray());</code></p>
                     Date: () => new Date().toISOString(),
                     "doesn't matter": "*",
                 });
-                output("#output-select-star", results.toArray());
+                output("#output-select-star", results);
             </script>
 
             <h3>Optional <code>.select()</code></h3>
@@ -153,7 +165,7 @@ console.table(results.toArray());</code></p>
                 import { CSVDB } from "./csvdb.js";
                 const db = new CSVDB("a,b,c\n1,2,3\n4,5,6");
                 const results = db.query().where(row => +row.b > 2);
-                output("#output-where", results.toArray());
+                output("#output-where", results);
             </script>
 
             <h3>Multiple predicates</h3>
@@ -169,7 +181,7 @@ console.table(results.toArray());</code></p>
                 const results = db.query()
                     .where(row => row.a === "1" || +row.c > 5)
                     .where(row => +row.b < 5);
-                output("#output-where-multiple", results.toArray());
+                output("#output-where-multiple", results);
             </script>
 
             <h2>GROUP BY</h2>
@@ -185,7 +197,7 @@ console.table(results.toArray());</code></p>
                 const results = db.query()
                     .groupBy(row => row.a)
                     .select(["a","COUNT(*)"]);
-                output("#output-groupby", results.toArray());
+                output("#output-groupby", results);
             </script>
 
             <h3>Aggregate Functions</h3>
@@ -219,7 +231,7 @@ console.table(results.toArray());</code></p>
                         "ARRAY(c)",
                         "ANY(c)"
                     ]);
-                output("#output-groupby-aggregate", results.toArray());
+                output("#output-groupby-aggregate", results);
             </script>
 
             <h3>Custom Aggregate Functions</h3>
@@ -252,7 +264,7 @@ console.table(results.toArray());</code></p>
                         customSum: (row, i, rows) => rows.reduce((total, row) => total + +row.a, 0),
                     })
                     .groupBy(() => true);
-                output("#output-custom-aggregate", results.toArray());
+                output("#output-custom-aggregate", results);
             </script>
 
             <h3>FILTER (WHERE …)</h3>
@@ -277,7 +289,7 @@ console.table(results.toArray());</code></p>
                         customSumWithFilter: (row, i, rows) => rows.filter(row => row.b === "2").reduce((total, row) => total + +row.a, 0),
                     })
                     .groupBy(() => true);
-                output("#output-filter", results.toArray());
+                output("#output-filter", results);
             </script>
 
             <h2>ORDER BY</h2>
@@ -298,7 +310,7 @@ console.table(results.toArray());</code></p>
                 const db = new CSVDB("a,b,c\n1,2,3\n4,5,6");
                 const results = db.query()
                     .orderBy((rowA, rowB) => -rowA.a.localeCompare(rowB.a));
-                output("#output-orderby", results.toArray());
+                output("#output-orderby", results);
             </script>
 
 
@@ -317,7 +329,7 @@ console.table(results.toArray());</code></p>
                 const results = db.query()
                     .orderBy((rowA, rowB) => -rowA.a.localeCompare(rowB.a))
                     .fetchFirst(1);
-                output("#output-fetch-first", results.toArray());
+                output("#output-fetch-first", results);
             </script>
 
             <h2>JOIN</h2>
@@ -345,7 +357,7 @@ console.table(results.toArray());</code></p>
                     .join(row => {
                         return row ? Array.from({length: +row.a}).map((_,i) => ({ ...row, z: i })) : [];
                     });
-                output("#output-join", results.toArray());
+                output("#output-join", results);
             </script>
 
             <h3>JOIN ON</h3>
@@ -366,7 +378,7 @@ console.table(results.toArray());</code></p>
                 const db2 = new CSVDB("i,j,k\n2,4,6\n3,6,9");
                 const results = db.query()
                     .joinOn(db2, (rowA, rowB) => rowA.b === rowB.i || rowA.c === rowB.i || rowA.a === rowB.j);
-                output("#output-join-on", results.toArray());
+                output("#output-join-on", results);
             </script>
 
             <h3>JOIN Examples</h3>
@@ -381,8 +393,8 @@ const db2 = new CSVDB("animal,family\ncat,feline\ndog,canine\nhorse,equine");</c
                 import { CSVDB } from "./csvdb.js";
                 const db = new CSVDB("owner,animal\ntom,cat\ndick,dog\nharry,bird");
                 const db2 = new CSVDB("animal,family\ncat,feline\ndog,canine\nhorse,equine");
-                output("#output-example-joins", db.query().toArray());
-                output("#output-example-joins", db2.query().toArray());
+                output("#output-example-joins", db.query());
+                output("#output-example-joins", db2.query());
             </script>
 
             <h3>INNER JOIN</h3>
@@ -405,7 +417,7 @@ const query = db.query().join(rowA => {
                     // INNER
                     return db2.query().where(rowB => rowB.animal === rowA.animal).toArray().map(rowB => ({ ...rowA, ...rowB }));
                 });
-                output("#output-example-inner-join", query.toArray());
+                output("#output-example-inner-join", query);
             </script>
 
             <h3>LEFT JOIN</h3>
@@ -440,8 +452,7 @@ const query = db.query().join(rowA => {
                     // LEFT
                     return [{ ...nullRow(db2), ...rowA  }];
                 });
-                output("#output-example-left-join", query.toArray());
-                // output("#output-example-left-join", JSON.stringify(query.toArray()));
+                output("#output-example-left-join", query);
             </script>
 
             <h3>RIGHT JOIN</h3>
@@ -486,7 +497,7 @@ const query = db.query().join(rowA => {
                     // LEFT
                     return [];
                 });
-                output("#output-example-right-join", query.toArray());
+                output("#output-example-right-join", query);
             </script>
 
             <h3>FULL JOIN</h3>
@@ -531,7 +542,7 @@ const query = db.query().join(rowA => {
                     // LEFT
                     return [{ ...nullRow(db2), ...rowA  }];
                 });
-                output("#output-example-full-join", query.toArray());
+                output("#output-example-full-join", query);
             </script>
 
             <h2>DISTINCT</h2>
@@ -549,9 +560,9 @@ console.table(results2.toArray());</code></p>
                 import { CSVDB } from "./csvdb.js";
                 const db = new CSVDB("a,b,c\n1,2,3\n1,2,3\n4,5,6");
                 const results = db.query();
-                output("#output-distinct", results.toArray());
+                output("#output-distinct", results);
                 const results2 = db.query().distinct();
-                output("#output-distinct", results2.toArray());
+                output("#output-distinct", results2);
             </script>
 
             <h2>WINDOW</h2>
@@ -600,7 +611,7 @@ console.table(results.toArray());</code></p>
                         rowNumber: "ROW_NUMBER() OVER win2",
                         list: "LISTAGG(c) OVER win2",
                     });
-                output("#output-window", results.toArray());
+                output("#output-window", results);
             </script>
             <p>
                 The framing spec is illustrated below.
@@ -673,7 +684,7 @@ console.table(results.toArray());</code></p>
                         first_b:    "FIRST_VALUE(b) OVER win2",
                         last_c:     "LAST_VALUE(c) OVER win2",
                     });
-                output("#output-position", results.toArray());
+                output("#output-position", results);
             </script>
 
             <h3>Empty Window</h3>
@@ -695,7 +706,7 @@ console.table(results.toArray());</code></p>
                         "*": "*",
                         rowNumber:  "ROW_NUMBER() OVER ()",
                     });
-                output("#output-window-empty", results.toArray());
+                output("#output-window-empty", results);
             </script>
 
 
@@ -712,8 +723,8 @@ const db2 = new CSVDB("a,b,c\n,1,2,3\n1,3,5");</code></p>
                 import { CSVDB } from "./csvdb.js";
                 const db  = new CSVDB("a,b,c\n1,2,3\n4,5,6");
                 const db2 = new CSVDB("a,b,c\n1,2,3\n1,3,5");
-                output("#output-sets", db.query().toArray());
-                output("#output-sets", db2.query().toArray());
+                output("#output-sets", db);
+                output("#output-sets", db2);
             </script>
 
             <h3>Except</h3>
@@ -725,7 +736,7 @@ console.table(results.toArray());</code></p>
                 const db  = new CSVDB("a,b,c\n1,2,3\n4,5,6");
                 const db2 = new CSVDB("a,b,c\n1,2,3\n1,3,5");
                 const results = CSVDB.except(db, db2);
-                output("#output-except", results.toArray());
+                output("#output-except", results);
             </script>
 
             <h3>Intersect</h3>
@@ -737,7 +748,7 @@ console.table(results.toArray());</code></p>
                 const db  = new CSVDB("a,b,c\n1,2,3\n4,5,6");
                 const db2 = new CSVDB("a,b,c\n1,2,3\n1,3,5");
                 const results = CSVDB.intersect(db, db2);
-                output("#output-intersect", results.toArray());
+                output("#output-intersect", results);
             </script>
 
             <h3>Union</h3>
@@ -749,7 +760,7 @@ console.table(results.toArray());</code></p>
                 const db  = new CSVDB("a,b,c\n1,2,3\n4,5,6");
                 const db2 = new CSVDB("a,b,c\n1,2,3\n1,3,5");
                 const results = CSVDB.union(db, db2);
-                output("#output-union", results.toArray());
+                output("#output-union", results);
             </script>
 
             <h3>Union All</h3>
@@ -761,7 +772,7 @@ console.table(results.toArray());</code></p>
                 const db  = new CSVDB("a,b,c\n1,2,3\n4,5,6");
                 const db2 = new CSVDB("a,b,c\n1,2,3\n1,3,5");
                 const results = CSVDB.unionAll(db, db2);
-                output("#output-union-all", results.toArray());
+                output("#output-union-all", results);
             </script>
         </main>
     </body>
