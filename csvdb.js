@@ -374,7 +374,7 @@ class CSVDBQuery {
                         }
 
                         if (windowSpec.orderBy) {
-                            rows.sort(windowSpec.orderBy);
+                            rows = [...rows].sort(windowSpec.orderBy);
 
                             let framingStart = Number.NEGATIVE_INFINITY;
                             let framingEnd = 0;
@@ -453,8 +453,8 @@ class CSVDBQuery {
 
                         if (fnName === "RANK") {
                             const index = rows.indexOf(sourceRow);
-                            let i = index - 1;
-                            for (; i > 0; i--) {
+                            let i = index;
+                            for (; i >= 0; i--) {
                                 // @ts-ignore
                                 const order = windowSpec.orderBy(rows[i], sourceRow);
                                 if (order !== 0) break;
@@ -471,8 +471,8 @@ class CSVDBQuery {
                             }
                             else {
                                 const index = rows.indexOf(sourceRow);
-                                let i = index - 1;
-                                for (; i > 0; i--) {
+                                let i = index;
+                                for (; i >= 0; i--) {
                                     // @ts-ignore
                                     const order = windowSpec.orderBy(rows[i], sourceRow);
                                     if (order !== 0) break;
