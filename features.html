@@ -644,6 +644,43 @@ console.table(results.toArray());</code></p>
                 "UNBOUNDED FOLLOWING"</code>
             </p>
 
+            <h3>Ranking Functions</h3>
+            <p>The following ranking functions are defined.</p>
+            <p class="code"><code>const db = new CSVDB("a,b,c\n1,2,3\n2,4,8\n1,4,7\n4,5,6");
+const results = db.query()
+    .window("win1", {
+        orderBy:        (rowA, rowB) => +rowA.b - +rowB.b,
+        framing:        ["rows", "UNBOUNDED PRECEDING", "UNBOUNDED FOLLOWING"],
+    })
+    .select({
+        "*": "*",
+        rowNumber:  "ROW_NUMBER() OVER win1",
+        rank:       "RANK() OVER win1",
+        ntile:      "NTILE(2) OVER win1",
+        percentRank:"PERCENT_RANK() OVER win1",
+        cumeDist:   "CUME_DIST() OVER win1",
+    });
+console.table(results.toArray());</code></p>
+            <output id="output-ranking"></output>
+            <script type="module">
+                import { CSVDB } from "./csvdb.js";
+                const db = new CSVDB("a,b,c\n1,2,3\n2,4,8\n1,4,7\n4,5,6");
+                const results = db.query()
+                    .window("win1", {
+                        orderBy:        (rowA, rowB) => +rowA.b - +rowB.b,
+                        framing:        ["rows", "UNBOUNDED PRECEDING", "UNBOUNDED FOLLOWING"],
+                    })
+                    .select({
+                        "*": "*",
+                        rowNumber:  "ROW_NUMBER() OVER win1",
+                        rank:       "RANK() OVER win1",
+                        ntile:      "NTILE(2) OVER win1",
+                        percentRank:"PERCENT_RANK() OVER win1",
+                        cumeDist:   "CUME_DIST() OVER win1",
+                    });
+                output("#output-ranking", results);
+            </script>
+
             <h3>Position Functions</h3>
             <p>The following position functions are defined.</p>
             <p class="code"><code>const db = new CSVDB("a,b,c\n1,2,3\n1,3,5\n1,4,7\n4,5,6");
@@ -659,7 +696,6 @@ const results = db.query()
     })
     .select({
         "*": "*",
-        rowNumber:  "ROW_NUMBER() OVER win1",
         lag_b:      "LAG(b) OVER win1",
         lead_2c:    "LEAD(c, 2) OVER win1",
         first_b:    "FIRST_VALUE(b) OVER win2",
@@ -682,7 +718,6 @@ console.table(results.toArray());</code></p>
                     })
                     .select({
                         "*": "*",
-                        rowNumber:  "ROW_NUMBER() OVER win1",
                         lag_b:      "LAG(b) OVER win1",
                         lead_2c:    "LEAD(c, 2) OVER win1",
                         first_b:    "FIRST_VALUE(b) OVER win2",

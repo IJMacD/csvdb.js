@@ -448,41 +448,82 @@ class CSVDBQuery {
                     else if (fnName === "ROW_NUMBER") {
                         value = rows.indexOf(sourceRow) + 1;
                     }
-                    else if (fnName === "LEAD") {
-                        orderByCheck(windowSpec, "LEAD");
-                        const index = rows.indexOf(sourceRow);
-                        let delta = 1;
-                        if (args.length > 1)
-                            delta = +args[1];
-                        value = values[index + delta] || null;
-                    }
-                    else if (fnName === "LAG") {
-                        orderByCheck(windowSpec, "LAG");
-                        let delta = 1;
-                        if (args.length > 1)
-                            delta = +args[1];
-                        const index = rows.indexOf(sourceRow);
-                        value = values[index - delta] || null;
-                    }
-                    else if (fnName === "FIRST_VALUE") {
-                        orderByCheck(windowSpec, "FIRST_VALUE");
-                        value = values[0];
-                    }
-                    else if (fnName === "LAST_VALUE") {
-                        orderByCheck(windowSpec, "LAST_VALUE");
-                        value = values[values.length - 1];
+                    else {
+                        orderByCheck(windowSpec, fnName);
+
+                        if (fnName === "RANK") {
+                            const index = rows.indexOf(sourceRow);
+                            let i = index - 1;
+                            for (; i > 0; i--) {
+                                // @ts-ignore
+                                const order = windowSpec.orderBy(rows[i], sourceRow);
+                                if (order !== 0) break;
+                            }
+                            value = i + 2;
+                        }
+                        else if (fnName === "NTILE") {
+                            const index = rows.indexOf(sourceRow);
+                            value = Math.floor(+args[0] * index / rows.length) + 1;
+                        }
+                        else if (fnName === "PERCENT_RANK") {
+                            if (rows.length === 1) {
+                                value = 0;
+                            }
+                            else {
+                                const index = rows.indexOf(sourceRow);
+                                let i = index - 1;
+                                for (; i > 0; i--) {
+                                    // @ts-ignore
+                                    const order = windowSpec.orderBy(rows[i], sourceRow);
+                                    if (order !== 0) break;
+                                }
+                                value = (i + 1) / (rows.length - 1);
+                            }
+                        }
+                        else if (fnName === "CUME_DIST") {
+                            const index = rows.indexOf(sourceRow);
+                            let i = index + 1;
+                            for (; i < rows.length; i++) {
+                                // @ts-ignore
+                                const order = windowSpec.orderBy(rows[i], sourceRow);
+                                if (order !== 0) break;
+                            }
+                            value = i / rows.length;
+                        }
+                        else if (fnName === "LEAD") {
+                            const index = rows.indexOf(sourceRow);
+                            let delta = 1;
+                            if (args.length > 1)
+                                delta = +args[1];
+                            value = values[index + delta] || null;
+                        }
+                        else if (fnName === "LAG") {
+                            let delta = 1;
+                            if (args.length > 1)
+                                delta = +args[1];
+                            const index = rows.indexOf(sourceRow);
+                            value = values[index - delta] || null;
+                        }
+                        else if (fnName === "FIRST_VALUE") {
+                            value = values[0];
+                        }
+                        else if (fnName === "LAST_VALUE") {
+                            value = values[values.length - 1];
+                        }
                     }
 
                     out[alias] = value;
                 }
                 else if (sourceRow) {
                     if (col === "*") {
-                        if (alias === "*") {
-                            Object.assign(out, sourceRow);
-                        }
-                        else {
-                            Object.assign(out, Object.fromEntries(Object.entries(sourceRow).map(([key,value]) => [`${alias}${key}`,value])));
-                        }
+                        Object.assign(out,
+                            (alias === "*") ?
+                                sourceRow :
+                                Object.fromEntries(
+                                    Object.entries(sourceRow)
+                                        .map(([key,value]) => [`${alias}${key}`,value])
+                                )
+                        );
                     }
                     else {
                         out[alias] = sourceRow[col];
