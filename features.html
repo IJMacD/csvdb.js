@@ -588,7 +588,7 @@ const results = db.query()
     .window("win2", {
         partitionBy:    row => row.a
         orderBy:        (rowA, rowB) => rowA.b.localeCompare(rowB.b),
-        framing:        ["rows", Number.NEGATIVE_INFINITY, 0],
+        framing:        ["ROWS", Number.NEGATIVE_INFINITY, 0],
     })
     .select({
         "*": "*",
@@ -608,7 +608,7 @@ console.table(results.toArray());</code></p>
                     .window("win2", {
                         partitionBy:    row => row.a,
                         orderBy:        (rowA, rowB) => rowA.b.localeCompare(rowB.b),
-                        framing:        ["rows", Number.NEGATIVE_INFINITY, 0],
+                        framing:        ["ROWS", Number.NEGATIVE_INFINITY, 0],
                     })
                     .select({
                         "*": "*",
@@ -629,9 +629,9 @@ console.table(results.toArray());</code></p>
                 There are some predefined strings which are equivalent to
                 certain numeric values.
                 The default framing when an <code>orderBy</code> clause is
-                specified in the window spec is: <code>["rows", "UNBOUNDED PRECEDING", "CURRENT ROW"]</code>.
+                specified in the window spec is: <code>["ROWS", "UNBOUNDED PRECEDING", "CURRENT ROW"]</code>.
             </p>
-            <p class="code"><code>["rows", &lt;FRAME START&gt;, &lt;FRAME END&gt;]
+            <p class="code"><code>["ROWS", &lt;FRAME START&gt;, &lt;FRAME END&gt;]
 
 &lt;FRAME START&gt; = 0 |
                 Number.NEGATIVE_INFINITY |
@@ -650,7 +650,7 @@ console.table(results.toArray());</code></p>
 const results = db.query()
     .window("win1", {
         orderBy:        (rowA, rowB) => +rowA.b - +rowB.b,
-        framing:        ["rows", "UNBOUNDED PRECEDING", "UNBOUNDED FOLLOWING"],
+        framing:        ["ROWS", "UNBOUNDED PRECEDING", "UNBOUNDED FOLLOWING"],
     })
     .select({
         "*": "*",
@@ -669,7 +669,7 @@ console.table(results.toArray());</code></p>
                 const results = db.query()
                     .window("win1", {
                         orderBy:        (rowA, rowB) => +rowA.b - +rowB.b,
-                        framing:        ["rows", "UNBOUNDED PRECEDING", "UNBOUNDED FOLLOWING"],
+                        framing:        ["ROWS", "UNBOUNDED PRECEDING", "UNBOUNDED FOLLOWING"],
                     })
                     .select({
                         "*": "*",
@@ -689,12 +689,12 @@ console.table(results.toArray());</code></p>
 const results = db.query()
     .window("win1", {
         orderBy:        (rowA, rowB) => rowA.b.localeCompare(rowB.b),
-        framing:        ["rows", "UNBOUNDED PRECEDING", "UNBOUNDED FOLLOWING"],
+        framing:        ["ROWS", "UNBOUNDED PRECEDING", "UNBOUNDED FOLLOWING"],
     })
     .window("win2", {
         partitionBy:    row => row.a,
         orderBy:        (rowA, rowB) => rowA.b.localeCompare(rowB.b),
-        framing:        ["rows", "UNBOUNDED PRECEDING", "UNBOUNDED FOLLOWING"],
+        framing:        ["ROWS", "UNBOUNDED PRECEDING", "UNBOUNDED FOLLOWING"],
     })
     .select({
         "*": "*",
@@ -712,12 +712,12 @@ console.table(results.toArray());</code></p>
                 const results = db.query()
                     .window("win1", {
                         orderBy:        (rowA, rowB) => rowA.b.localeCompare(rowB.b),
-                        framing:        ["rows", "UNBOUNDED PRECEDING", "UNBOUNDED FOLLOWING"],
+                        framing:        ["ROWS", "UNBOUNDED PRECEDING", "UNBOUNDED FOLLOWING"],
                     })
                     .window("win2", {
                         partitionBy:    row => row.a,
                         orderBy:        (rowA, rowB) => rowA.b.localeCompare(rowB.b),
-                        framing:        ["rows", "UNBOUNDED PRECEDING", "UNBOUNDED FOLLOWING"],
+                        framing:        ["ROWS", "UNBOUNDED PRECEDING", "UNBOUNDED FOLLOWING"],
                     })
                     .select({
                         "*": "*",

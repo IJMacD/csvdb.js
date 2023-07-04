@@ -380,7 +380,7 @@ class CSVDBQuery {
                             let framingEnd = 0;
 
                             if (windowSpec.framing) {
-                                if (windowSpec.framing[0] === "range") {
+                                if (windowSpec.framing[0] === "RANGE") {
                                     throw Error("Not Implemented: Window Spec RANGE");
                                 }
 
