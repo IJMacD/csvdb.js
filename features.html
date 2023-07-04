@@ -656,6 +656,7 @@ const results = db.query()
         "*": "*",
         rowNumber:  "ROW_NUMBER() OVER win1",
         rank:       "RANK() OVER win1",
+        denseRank:  "DENSE_RANK() OVER win1",
         ntile:      "NTILE(2) OVER win1",
         percentRank:"PERCENT_RANK() OVER win1",
         cumeDist:   "CUME_DIST() OVER win1",
@@ -674,6 +675,7 @@ console.table(results.toArray());</code></p>
                         "*": "*",
                         rowNumber:  "ROW_NUMBER() OVER win1",
                         rank:       "RANK() OVER win1",
+                        denseRank:  "DENSE_RANK() OVER win1",
                         ntile:      "NTILE(2) OVER win1",
                         percentRank:"PERCENT_RANK() OVER win1",
                         cumeDist:   "CUME_DIST() OVER win1",
@@ -700,6 +702,7 @@ const results = db.query()
         lead_2c:    "LEAD(c, 2) OVER win1",
         first_b:    "FIRST_VALUE(b) OVER win2",
         last_c:     "LAST_VALUE(c) OVER win2",
+        second_c:   "NTH_VALUE(c, 2) OVER win2",
     });
 console.table(results.toArray());</code></p>
             <output id="output-position"></output>
@@ -722,6 +725,7 @@ console.table(results.toArray());</code></p>
                         lead_2c:    "LEAD(c, 2) OVER win1",
                         first_b:    "FIRST_VALUE(b) OVER win2",
                         last_c:     "LAST_VALUE(c) OVER win2",
+                        second_c:   "NTH_VALUE(c, 2) OVER win2",
                     });
                 output("#output-position", results);
             </script>

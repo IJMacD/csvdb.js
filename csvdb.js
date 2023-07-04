@@ -461,6 +461,16 @@ class CSVDBQuery {
                             }
                             value = i + 2;
                         }
+                        else if (fnName === "DENSE_RANK") {
+                            const index = rows.indexOf(sourceRow);
+                            let count = 0;
+                            for (let i = 1; i <= index; i++) {
+                                // @ts-ignore
+                                const order = windowSpec.orderBy(rows[i-1], rows[i]);
+                                if (order === 0) count++;
+                            }
+                            value = index - count + 1;
+                        }
                         else if (fnName === "NTILE") {
                             const index = rows.indexOf(sourceRow);
                             value = Math.floor(+args[0] * index / rows.length) + 1;
@@ -509,6 +519,9 @@ class CSVDBQuery {
                         }
                         else if (fnName === "LAST_VALUE") {
                             value = values[values.length - 1];
+                        }
+                        else if (fnName === "NTH_VALUE") {
+                            value = values[+args[1] - 1] || null;
                         }
                     }
 
