@@ -357,6 +357,8 @@ class CSVDBQuery {
 
                     let rows = groupRows;
                     let windowSpec;
+                    /** @type {(rowA: RowObject, rowB: RowObject) => number} */
+                    let orderBy;
 
                     if (windowName) {
                         windowSpec = windowName === "()" ?
@@ -368,19 +370,33 @@ class CSVDBQuery {
                         }
 
                         if (windowSpec.partitionBy) {
-                            const fn = windowSpec.partitionBy;
+                            const fn = typeof windowSpec.partitionBy === "string" ? (/** @type {RowObject} */ row) => row[windowSpec.partitionBy] : windowSpec.partitionBy;
                             const sympatheticValue = fn(sourceRow);
                             rows = rows.filter(row => fn(row) === sympatheticValue);
                         }
 
                         if (windowSpec.orderBy) {
-                            rows.sort(windowSpec.orderBy);
+                            if (typeof windowSpec.orderBy === "string") {
+                                let k = windowSpec.orderBy;
+                                if (k[0] === "+") {
+                                    k = k.substring(1);
+                                    orderBy = (rowA, rowB) => +rowA[k] - +rowB[k];
+                                }
+                                else {
+                                    orderBy = (rowA, rowB) => rowA[k].localeCompare(rowB[k]);
+                                }
+                            }
+                            else {
+                                orderBy = windowSpec.orderBy;
+                            }
+
+                            rows = [...rows].sort(orderBy);
 
                             let framingStart = Number.NEGATIVE_INFINITY;
                             let framingEnd = 0;
 
                             if (windowSpec.framing) {
-                                if (windowSpec.framing[0] === "range") {
+                                if (windowSpec.framing[0] === "RANGE") {
                                     throw Error("Not Implemented: Window Spec RANGE");
                                 }
 
@@ -453,13 +469,23 @@ class CSVDBQuery {
 
                         if (fnName === "RANK") {
                             const index = rows.indexOf(sourceRow);
-                            let i = index - 1;
-                            for (; i > 0; i--) {
+                            let i = index;
+                            for (; i >= 0; i--) {
                                 // @ts-ignore
-                                const order = windowSpec.orderBy(rows[i], sourceRow);
+                                const order = orderBy(rows[i], sourceRow);
                                 if (order !== 0) break;
                             }
                             value = i + 2;
+                        }
+                        else if (fnName === "DENSE_RANK") {
+                            const index = rows.indexOf(sourceRow);
+                            let count = 0;
+                            for (let i = 1; i <= index; i++) {
+                                // @ts-ignore
+                                const order = orderBy(rows[i-1], rows[i]);
+                                if (order === 0) count++;
+                            }
+                            value = index - count + 1;
                         }
                         else if (fnName === "NTILE") {
                             const index = rows.indexOf(sourceRow);
@@ -471,10 +497,10 @@ class CSVDBQuery {
                             }
                             else {
                                 const index = rows.indexOf(sourceRow);
-                                let i = index - 1;
-                                for (; i > 0; i--) {
+                                let i = index;
+                                for (; i >= 0; i--) {
                                     // @ts-ignore
-                                    const order = windowSpec.orderBy(rows[i], sourceRow);
+                                    const order = orderBy(rows[i], sourceRow);
                                     if (order !== 0) break;
                                 }
                                 value = (i + 1) / (rows.length - 1);
@@ -485,10 +511,70 @@ class CSVDBQuery {
                             let i = index + 1;
                             for (; i < rows.length; i++) {
                                 // @ts-ignore
-                                const order = windowSpec.orderBy(rows[i], sourceRow);
+                                const order = orderBy(rows[i], sourceRow);
                                 if (order !== 0) break;
                             }
                             value = i / rows.length;
+                        }
+                        else if (fnName === "PERCENTILE_DIST") {
+                            if (typeof windowSpec?.orderBy !== "string") {
+                                throw Error(`PERCENTILE_DIST requires orderBy to be specified as a string`);
+                            }
+
+                            let k = windowSpec.orderBy;
+                            if (k[0] === "+") {
+                                k = k.substring(1);
+                            }
+
+                            const percentile = +args[0];
+
+                            value = null;
+
+                            for (let i = 0; i < rows.length; i++) {
+                                for (let j = i + 1; j < rows.length; j++) {
+                                    if (rows[i][k] !== rows[j][k]) break;
+                                }
+                                const p = i / rows.length;
+
+                                if (p >= percentile) {
+                                    value = rows[i][k];
+                                    break;
+                                }
+                            }
+                        }
+                        else if (fnName === "PERCENTILE_CONT") {
+                            if (typeof windowSpec?.orderBy !== "string") {
+                                throw Error(`PERCENTILE_CONT requires orderBy to be specified as a string`);
+                            }
+
+                            let k = windowSpec.orderBy;
+                            if (k[0] === "+") {
+                                k = k.substring(1);
+                            }
+
+                            const percentile = +args[0];
+
+                            value = null;
+
+                            let prevP = 0;
+
+                            for (let i = 0; i < rows.length; i++) {
+                                let j = i + 1;
+                                for (; j < rows.length; j++) {
+                                    if (rows[i][k] !== rows[j][k]) break;
+                                }
+                                const p = j / rows.length;
+
+                                if (p >= percentile) {
+                                    const x = (percentile - prevP)/(p - prevP);
+                                    const a = +rows[i-1][k];
+                                    const b = +rows[i][k];
+                                    value = x * (b - a) + a;
+                                    break;
+                                }
+
+                                prevP = p;
+                            }
                         }
                         else if (fnName === "LEAD") {
                             const index = rows.indexOf(sourceRow);
@@ -509,6 +595,9 @@ class CSVDBQuery {
                         }
                         else if (fnName === "LAST_VALUE") {
                             value = values[values.length - 1];
+                        }
+                        else if (fnName === "NTH_VALUE") {
+                            value = values[+args[1] - 1] || null;
                         }
                     }
 

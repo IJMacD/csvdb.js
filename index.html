@@ -578,7 +578,13 @@ console.table(results2.toArray());</code></p>
                 method to specify named window specs.
                 The <code>ROW_NUMBER()</code> function is a function which
                 numbers rows in the current group/partition with a 1-based
-                index.
+                index. The <code>partitionBy</code> and <code>orderBy</code>
+                properties can be specified as either a function, or a string
+                giving the property of the row object to use for partition or
+                ordering.
+                When the value of <code>orderBy</code> is a string, if the
+                string starts with <code>+</code> then the values are compared
+                numerically, otherwise values are compared as strings.
             </p>
             <p class="code"><code>const db = new CSVDB("a,b,c\n1,2,3\n1,3,5\n1,4,7\n4,5,6");
 const results = db.query()
@@ -588,13 +594,20 @@ const results = db.query()
     .window("win2", {
         partitionBy:    row => row.a
         orderBy:        (rowA, rowB) => rowA.b.localeCompare(rowB.b),
-        framing:        ["rows", Number.NEGATIVE_INFINITY, 0],
+        framing:        ["ROWS", Number.NEGATIVE_INFINITY, 0],
+    })
+    .window("win3", {
+        partitionBy:    "a",
+        orderBy:        "+b",
+        framing:        ["ROWS", Number.NEGATIVE_INFINITY, 0],
     })
     .select({
         "*": "*",
         count: "COUNT(*) OVER win1",
         rowNumber: "ROW_NUMBER() OVER win2",
         list: "LISTAGG(c) OVER win2",
+        rowNumber2: "ROW_NUMBER() OVER win3",
+        list2: "LISTAGG(c) OVER win3",
     });
 console.table(results.toArray());</code></p>
             <output id="output-window"></output>
@@ -608,13 +621,20 @@ console.table(results.toArray());</code></p>
                     .window("win2", {
                         partitionBy:    row => row.a,
                         orderBy:        (rowA, rowB) => rowA.b.localeCompare(rowB.b),
-                        framing:        ["rows", Number.NEGATIVE_INFINITY, 0],
+                        framing:        ["ROWS", Number.NEGATIVE_INFINITY, 0],
+                    })
+                    .window("win3", {
+                        partitionBy:    "a",
+                        orderBy:        "+b",
+                        framing:        ["ROWS", Number.NEGATIVE_INFINITY, 0],
                     })
                     .select({
                         "*": "*",
                         count: "COUNT(*) OVER win1",
                         rowNumber: "ROW_NUMBER() OVER win2",
                         list: "LISTAGG(c) OVER win2",
+                        rowNumber2: "ROW_NUMBER() OVER win3",
+                        list2: "LISTAGG(c) OVER win3",
                     });
                 output("#output-window", results);
             </script>
@@ -629,9 +649,9 @@ console.table(results.toArray());</code></p>
                 There are some predefined strings which are equivalent to
                 certain numeric values.
                 The default framing when an <code>orderBy</code> clause is
-                specified in the window spec is: <code>["rows", "UNBOUNDED PRECEDING", "CURRENT ROW"]</code>.
+                specified in the window spec is: <code>["ROWS", "UNBOUNDED PRECEDING", "CURRENT ROW"]</code>.
             </p>
-            <p class="code"><code>["rows", &lt;FRAME START&gt;, &lt;FRAME END&gt;]
+            <p class="code"><code>["ROWS", &lt;FRAME START&gt;, &lt;FRAME END&gt;]
 
 &lt;FRAME START&gt; = 0 |
                 Number.NEGATIVE_INFINITY |
@@ -649,16 +669,19 @@ console.table(results.toArray());</code></p>
             <p class="code"><code>const db = new CSVDB("a,b,c\n1,2,3\n2,4,8\n1,4,7\n4,5,6");
 const results = db.query()
     .window("win1", {
-        orderBy:        (rowA, rowB) => +rowA.b - +rowB.b,
-        framing:        ["rows", "UNBOUNDED PRECEDING", "UNBOUNDED FOLLOWING"],
+        orderBy:        "+b",
+        framing:        ["ROWS", "UNBOUNDED PRECEDING", "UNBOUNDED FOLLOWING"],
     })
     .select({
         "*": "*",
         rowNumber:  "ROW_NUMBER() OVER win1",
         rank:       "RANK() OVER win1",
+        denseRank:  "DENSE_RANK() OVER win1",
         ntile:      "NTILE(2) OVER win1",
         percentRank:"PERCENT_RANK() OVER win1",
         cumeDist:   "CUME_DIST() OVER win1",
+        median:     "PERCENTILE_DIST(0.5) OVER win1",
+        medianCont: "PERCENTILE_CONT(0.5) OVER win1",
     });
 console.table(results.toArray());</code></p>
             <output id="output-ranking"></output>
@@ -667,16 +690,19 @@ console.table(results.toArray());</code></p>
                 const db = new CSVDB("a,b,c\n1,2,3\n2,4,8\n1,4,7\n4,5,6");
                 const results = db.query()
                     .window("win1", {
-                        orderBy:        (rowA, rowB) => +rowA.b - +rowB.b,
-                        framing:        ["rows", "UNBOUNDED PRECEDING", "UNBOUNDED FOLLOWING"],
+                        orderBy:        "+b",
+                        framing:        ["ROWS", "UNBOUNDED PRECEDING", "UNBOUNDED FOLLOWING"],
                     })
                     .select({
                         "*": "*",
                         rowNumber:  "ROW_NUMBER() OVER win1",
                         rank:       "RANK() OVER win1",
+                        denseRank:  "DENSE_RANK() OVER win1",
                         ntile:      "NTILE(2) OVER win1",
                         percentRank:"PERCENT_RANK() OVER win1",
                         cumeDist:   "CUME_DIST() OVER win1",
+                        median:     "PERCENTILE_DIST(0.5) OVER win1",
+                        medianCont: "PERCENTILE_CONT(0.5) OVER win1",
                     });
                 output("#output-ranking", results);
             </script>
@@ -687,12 +713,12 @@ console.table(results.toArray());</code></p>
 const results = db.query()
     .window("win1", {
         orderBy:        (rowA, rowB) => rowA.b.localeCompare(rowB.b),
-        framing:        ["rows", "UNBOUNDED PRECEDING", "UNBOUNDED FOLLOWING"],
+        framing:        ["ROWS", "UNBOUNDED PRECEDING", "UNBOUNDED FOLLOWING"],
     })
     .window("win2", {
         partitionBy:    row => row.a,
         orderBy:        (rowA, rowB) => rowA.b.localeCompare(rowB.b),
-        framing:        ["rows", "UNBOUNDED PRECEDING", "UNBOUNDED FOLLOWING"],
+        framing:        ["ROWS", "UNBOUNDED PRECEDING", "UNBOUNDED FOLLOWING"],
     })
     .select({
         "*": "*",
@@ -700,6 +726,7 @@ const results = db.query()
         lead_2c:    "LEAD(c, 2) OVER win1",
         first_b:    "FIRST_VALUE(b) OVER win2",
         last_c:     "LAST_VALUE(c) OVER win2",
+        second_c:   "NTH_VALUE(c, 2) OVER win2",
     });
 console.table(results.toArray());</code></p>
             <output id="output-position"></output>
@@ -709,12 +736,12 @@ console.table(results.toArray());</code></p>
                 const results = db.query()
                     .window("win1", {
                         orderBy:        (rowA, rowB) => rowA.b.localeCompare(rowB.b),
-                        framing:        ["rows", "UNBOUNDED PRECEDING", "UNBOUNDED FOLLOWING"],
+                        framing:        ["ROWS", "UNBOUNDED PRECEDING", "UNBOUNDED FOLLOWING"],
                     })
                     .window("win2", {
                         partitionBy:    row => row.a,
                         orderBy:        (rowA, rowB) => rowA.b.localeCompare(rowB.b),
-                        framing:        ["rows", "UNBOUNDED PRECEDING", "UNBOUNDED FOLLOWING"],
+                        framing:        ["ROWS", "UNBOUNDED PRECEDING", "UNBOUNDED FOLLOWING"],
                     })
                     .select({
                         "*": "*",
@@ -722,6 +749,7 @@ console.table(results.toArray());</code></p>
                         lead_2c:    "LEAD(c, 2) OVER win1",
                         first_b:    "FIRST_VALUE(b) OVER win2",
                         last_c:     "LAST_VALUE(c) OVER win2",
+                        second_c:   "NTH_VALUE(c, 2) OVER win2",
                     });
                 output("#output-position", results);
             </script>
