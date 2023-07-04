@@ -578,7 +578,13 @@ console.table(results2.toArray());</code></p>
                 method to specify named window specs.
                 The <code>ROW_NUMBER()</code> function is a function which
                 numbers rows in the current group/partition with a 1-based
-                index.
+                index. The <code>partitionBy</code> and <code>orderBy</code>
+                properties can be specified as either a function, or a string
+                giving the property of the row object to use for partition or
+                ordering.
+                When the value of <code>orderBy</code> is a string, if the
+                string starts with <code>+</code> then the values are compared
+                numerically, otherwise values are compared as strings.
             </p>
             <p class="code"><code>const db = new CSVDB("a,b,c\n1,2,3\n1,3,5\n1,4,7\n4,5,6");
 const results = db.query()
@@ -590,11 +596,18 @@ const results = db.query()
         orderBy:        (rowA, rowB) => rowA.b.localeCompare(rowB.b),
         framing:        ["ROWS", Number.NEGATIVE_INFINITY, 0],
     })
+    .window("win3", {
+        partitionBy:    "a",
+        orderBy:        "+b",
+        framing:        ["ROWS", Number.NEGATIVE_INFINITY, 0],
+    })
     .select({
         "*": "*",
         count: "COUNT(*) OVER win1",
         rowNumber: "ROW_NUMBER() OVER win2",
         list: "LISTAGG(c) OVER win2",
+        rowNumber2: "ROW_NUMBER() OVER win3",
+        list2: "LISTAGG(c) OVER win3",
     });
 console.table(results.toArray());</code></p>
             <output id="output-window"></output>
@@ -610,11 +623,18 @@ console.table(results.toArray());</code></p>
                         orderBy:        (rowA, rowB) => rowA.b.localeCompare(rowB.b),
                         framing:        ["ROWS", Number.NEGATIVE_INFINITY, 0],
                     })
+                    .window("win3", {
+                        partitionBy:    "a",
+                        orderBy:        "+b",
+                        framing:        ["ROWS", Number.NEGATIVE_INFINITY, 0],
+                    })
                     .select({
                         "*": "*",
                         count: "COUNT(*) OVER win1",
                         rowNumber: "ROW_NUMBER() OVER win2",
                         list: "LISTAGG(c) OVER win2",
+                        rowNumber2: "ROW_NUMBER() OVER win3",
+                        list2: "LISTAGG(c) OVER win3",
                     });
                 output("#output-window", results);
             </script>

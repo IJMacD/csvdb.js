@@ -35,7 +35,7 @@ interface SelectObject {
 }
 
 interface WindowSpec {
-    partitionBy?: (row: RowObject) => any;
-    orderBy?: (rowA: RowObject, rowB: RowObject) => number;
+    partitionBy?: string|((row: RowObject) => any);
+    orderBy?: string|((rowA: RowObject, rowB: RowObject) => number);
     framing?: [unit:"ROWS"|"RANGE",start:string|number,end:string|number];
 }

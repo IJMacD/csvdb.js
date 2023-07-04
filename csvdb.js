@@ -368,13 +368,25 @@ class CSVDBQuery {
                         }
 
                         if (windowSpec.partitionBy) {
-                            const fn = windowSpec.partitionBy;
+                            const fn = typeof windowSpec.partitionBy === "string" ? (/** @type {RowObject} */ row) => row[windowSpec.partitionBy] : windowSpec.partitionBy;
                             const sympatheticValue = fn(sourceRow);
                             rows = rows.filter(row => fn(row) === sympatheticValue);
                         }
 
                         if (windowSpec.orderBy) {
-                            rows = [...rows].sort(windowSpec.orderBy);
+                            if (typeof windowSpec.orderBy === "string") {
+                                let k = windowSpec.orderBy;
+                                if (k[0] === "+") {
+                                    k = k.substring(1);
+                                    rows = [...rows].sort((rowA, rowB) => +rowA[k] - +rowB[k]);
+                                }
+                                else {
+                                    rows = [...rows].sort((rowA, rowB) => rowA[k].localeCompare(rowB[k]));
+                                }
+                            }
+                            else {
+                                rows = [...rows].sort(windowSpec.orderBy);
+                            }
 
                             let framingStart = Number.NEGATIVE_INFINITY;
                             let framingEnd = 0;
