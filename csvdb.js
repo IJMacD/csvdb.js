@@ -357,6 +357,8 @@ class CSVDBQuery {
 
                     let rows = groupRows;
                     let windowSpec;
+                    /** @type {(rowA: RowObject, rowB: RowObject) => number} */
+                    let orderBy;
 
                     if (windowName) {
                         windowSpec = windowName === "()" ?
@@ -378,15 +380,17 @@ class CSVDBQuery {
                                 let k = windowSpec.orderBy;
                                 if (k[0] === "+") {
                                     k = k.substring(1);
-                                    rows = [...rows].sort((rowA, rowB) => +rowA[k] - +rowB[k]);
+                                    orderBy = (rowA, rowB) => +rowA[k] - +rowB[k];
                                 }
                                 else {
-                                    rows = [...rows].sort((rowA, rowB) => rowA[k].localeCompare(rowB[k]));
+                                    orderBy = (rowA, rowB) => rowA[k].localeCompare(rowB[k]);
                                 }
                             }
                             else {
-                                rows = [...rows].sort(windowSpec.orderBy);
+                                orderBy = windowSpec.orderBy;
                             }
+
+                            rows = [...rows].sort(orderBy);
 
                             let framingStart = Number.NEGATIVE_INFINITY;
                             let framingEnd = 0;
@@ -468,7 +472,7 @@ class CSVDBQuery {
                             let i = index;
                             for (; i >= 0; i--) {
                                 // @ts-ignore
-                                const order = windowSpec.orderBy(rows[i], sourceRow);
+                                const order = orderBy(rows[i], sourceRow);
                                 if (order !== 0) break;
                             }
                             value = i + 2;
@@ -478,7 +482,7 @@ class CSVDBQuery {
                             let count = 0;
                             for (let i = 1; i <= index; i++) {
                                 // @ts-ignore
-                                const order = windowSpec.orderBy(rows[i-1], rows[i]);
+                                const order = orderBy(rows[i-1], rows[i]);
                                 if (order === 0) count++;
                             }
                             value = index - count + 1;
@@ -496,7 +500,7 @@ class CSVDBQuery {
                                 let i = index;
                                 for (; i >= 0; i--) {
                                     // @ts-ignore
-                                    const order = windowSpec.orderBy(rows[i], sourceRow);
+                                    const order = orderBy(rows[i], sourceRow);
                                     if (order !== 0) break;
                                 }
                                 value = (i + 1) / (rows.length - 1);
@@ -507,10 +511,70 @@ class CSVDBQuery {
                             let i = index + 1;
                             for (; i < rows.length; i++) {
                                 // @ts-ignore
-                                const order = windowSpec.orderBy(rows[i], sourceRow);
+                                const order = orderBy(rows[i], sourceRow);
                                 if (order !== 0) break;
                             }
                             value = i / rows.length;
+                        }
+                        else if (fnName === "PERCENTILE_DIST") {
+                            if (typeof windowSpec?.orderBy !== "string") {
+                                throw Error(`PERCENTILE_DIST requires orderBy to be specified as a string`);
+                            }
+
+                            let k = windowSpec.orderBy;
+                            if (k[0] === "+") {
+                                k = k.substring(1);
+                            }
+
+                            const percentile = +args[0];
+
+                            value = null;
+
+                            for (let i = 0; i < rows.length; i++) {
+                                for (let j = i + 1; j < rows.length; j++) {
+                                    if (rows[i][k] !== rows[j][k]) break;
+                                }
+                                const p = i / rows.length;
+
+                                if (p >= percentile) {
+                                    value = rows[i][k];
+                                    break;
+                                }
+                            }
+                        }
+                        else if (fnName === "PERCENTILE_CONT") {
+                            if (typeof windowSpec?.orderBy !== "string") {
+                                throw Error(`PERCENTILE_CONT requires orderBy to be specified as a string`);
+                            }
+
+                            let k = windowSpec.orderBy;
+                            if (k[0] === "+") {
+                                k = k.substring(1);
+                            }
+
+                            const percentile = +args[0];
+
+                            value = null;
+
+                            let prevP = 0;
+
+                            for (let i = 0; i < rows.length; i++) {
+                                let j = i + 1;
+                                for (; j < rows.length; j++) {
+                                    if (rows[i][k] !== rows[j][k]) break;
+                                }
+                                const p = j / rows.length;
+
+                                if (p >= percentile) {
+                                    const x = (percentile - prevP)/(p - prevP);
+                                    const a = +rows[i-1][k];
+                                    const b = +rows[i][k];
+                                    value = x * (b - a) + a;
+                                    break;
+                                }
+
+                                prevP = p;
+                            }
                         }
                         else if (fnName === "LEAD") {
                             const index = rows.indexOf(sourceRow);

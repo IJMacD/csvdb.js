@@ -669,7 +669,7 @@ console.table(results.toArray());</code></p>
             <p class="code"><code>const db = new CSVDB("a,b,c\n1,2,3\n2,4,8\n1,4,7\n4,5,6");
 const results = db.query()
     .window("win1", {
-        orderBy:        (rowA, rowB) => +rowA.b - +rowB.b,
+        orderBy:        "+b",
         framing:        ["ROWS", "UNBOUNDED PRECEDING", "UNBOUNDED FOLLOWING"],
     })
     .select({
@@ -680,6 +680,8 @@ const results = db.query()
         ntile:      "NTILE(2) OVER win1",
         percentRank:"PERCENT_RANK() OVER win1",
         cumeDist:   "CUME_DIST() OVER win1",
+        median:     "PERCENTILE_DIST(0.5) OVER win1",
+        medianCont: "PERCENTILE_CONT(0.5) OVER win1",
     });
 console.table(results.toArray());</code></p>
             <output id="output-ranking"></output>
@@ -688,7 +690,7 @@ console.table(results.toArray());</code></p>
                 const db = new CSVDB("a,b,c\n1,2,3\n2,4,8\n1,4,7\n4,5,6");
                 const results = db.query()
                     .window("win1", {
-                        orderBy:        (rowA, rowB) => +rowA.b - +rowB.b,
+                        orderBy:        "+b",
                         framing:        ["ROWS", "UNBOUNDED PRECEDING", "UNBOUNDED FOLLOWING"],
                     })
                     .select({
@@ -699,6 +701,8 @@ console.table(results.toArray());</code></p>
                         ntile:      "NTILE(2) OVER win1",
                         percentRank:"PERCENT_RANK() OVER win1",
                         cumeDist:   "CUME_DIST() OVER win1",
+                        median:     "PERCENTILE_DIST(0.5) OVER win1",
+                        medianCont: "PERCENTILE_CONT(0.5) OVER win1",
                     });
                 output("#output-ranking", results);
             </script>
