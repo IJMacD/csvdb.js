@@ -3,6 +3,9 @@
     <head>
         <title>Features</title>
         <script>
+            const styles = ["mssql", "term", "mssql2000"];
+            const style = styles[Math.floor(Math.random()*styles.length)];
+
             function output (target, data) {
                 if (typeof data === "string") {
                     document.querySelector(target).innerHTML += `<p>${data.replace("<","&lt;")}</p>`;
@@ -22,7 +25,7 @@
                     const headers = Object.keys(data[0]);
                     const headerRow = `<tr>${headers.map(h=>`<th>${h}</th>`).join("")}</tr>`;
                     const dataRows = data.map(row=>`<tr>${headers.map(h=>`<td tabindex=0>${row[h]===null?`<em style="color:#CCC;">NULL</em>`:row[h]}</td>`).join("")}</tr>`).join("");
-                    html = `<table><thead>${headerRow}</thead><tbody>${dataRows}</tbody></table>`;
+                    html = `<table class="${style}"><thead>${headerRow}</thead><tbody>${dataRows}</tbody></table>`;
                 }
                 }
                 catch (e) {
@@ -35,10 +38,22 @@
         <style>
             body { font-family: 'Lucida Sans', 'Lucida Sans Regular', 'Lucida Grande', 'Lucida Sans Unicode', Geneva, Verdana, sans-serif; }
             main { max-width: 1280px; margin: 0 auto; }
-            table { border-collapse: collapse; margin-bottom: 1em; font-family: 'Microsoft Sans Serif', Arial, Helvetica, sans-serif; font-size: 10pt; outline: 1px solid #ABADB3; outline-offset: -1px; }
-            th { font-weight: normal; padding: 0.25em 0.4em; text-align: left; border: 1px solid #E5E5E5; }
-            td { padding: 0.25em 0.6em; border: 1px solid #F0F0F0; }
-            td:active, td:focus { outline: 1px dotted #000000; outline-offset: -1px; background-color: #E8EDF2; }
+            .mssql { border-collapse: collapse; margin-bottom: 1em; font-family: 'Microsoft Sans Serif', Arial, Helvetica, sans-serif; font-size: 10pt; outline: 1px solid #ABADB3; outline-offset: -1px; }
+            .mssql th { font-weight: normal; padding: 0.25em 0.4em; text-align: left; border: 1px solid #E5E5E5; }
+            .mssql td { padding: 0.25em 0.6em; border: 1px solid #F0F0F0; }
+            .mssql td:active, .mssql td:focus { outline: 1px dotted #000000; outline-offset: -1px; background-color: #E8EDF2; }
+            .term { border-spacing: 2px 6px; margin-bottom: 1em; font-family: 'Courier New', Courier, monospace; font-size: 10pt; }
+            .term th { font-weight: normal; padding: 0 0.5em; text-align: left; border-bottom: 1px dashed #333; border-right: 1px solid #333; }
+            .term td { padding: 0 0.5em; border-right: 1px solid #333; }
+            .term th:last-child, .term td:last-child { border-right: none; }
+            .mssql2000 { border-collapse: collapse; margin-bottom: 1em; font-family: 'Microsoft Sans Serif', Arial, Helvetica, sans-serif; font-size: 10pt; outline: 1px solid #ABADB3; outline-offset: -1px; }
+            .mssql2000 th { font-weight: normal; padding: 0.25em 8px; text-align: left; border: 1px solid #D4D6D5; background-image: linear-gradient(#FFFFFF 0%, #FFFFFF 50%, #F3F3F5 100%); }
+            .mssql2000 td { padding: 0.25em 8px; border: 1px solid #FFFFFF; }
+            .mssql2000 tr:nth-child(2n + 1) td { background-color: #EDF3FD; }
+            .mssql2000 tr td:active, .mssql2000 tr td:focus { background-color: #3599FC; color: white; }
+            .mssql2000 tr { position: relative; }
+            .mssql2000 tr::before { content: "\a0"; display: table-cell; width: 30px; border: 1px solid #D4D6D5; background-image: linear-gradient(to right, #FFFFFF 0%, #FFFFFF 50%, #F3F3F5 100%); }
+            .mssql2000 tr:focus-within::after { content: "⏵"; position: absolute; left: 20px; }
             .code { padding: 0.5em; border: 1px solid #DDD; white-space: pre-wrap; word-break: break-all; }
             .code, code { background-color: #ECECEC;font-family: 'Courier New', Courier, monospace; }
             output { display: block; margin-bottom: 0.5em; padding: 0.25em 0.5em; border: 1px solid #DDD; }
