@@ -722,7 +722,7 @@ const AGGREGATE_FUNCTIONS = {
  * @type {{ [name: string]: ((sourceRow: RowObject, rows: RowObject[], args: string[], windowSpec: WindowSpec) => any) }}
  */
 const WINDOW_FUNCTIONS = {
-    RANK: function (sourceRow, rows, args, windowSpec) {
+    RANK: (sourceRow, rows, args, windowSpec) => {
         const orderBy = getOrderBy(windowSpec);
 
         const index = rows.indexOf(sourceRow);
@@ -734,7 +734,7 @@ const WINDOW_FUNCTIONS = {
         }
         return i + 2;
     },
-    DENSE_RANK: function (sourceRow, rows, args, windowSpec) {
+    DENSE_RANK: (sourceRow, rows, args, windowSpec) => {
         const orderBy = getOrderBy(windowSpec);
 
         const index = rows.indexOf(sourceRow);
@@ -746,11 +746,11 @@ const WINDOW_FUNCTIONS = {
         }
         return index - count + 1;
     },
-    NTILE: function (sourceRow, rows, args, windowSpec) {
+    NTILE: (sourceRow, rows, args, windowSpec) => {
         const index = rows.indexOf(sourceRow);
         return Math.floor(+args[0] * index / rows.length) + 1;
     },
-    PERCENT_RANK: function (sourceRow, rows, args, windowSpec) {
+    PERCENT_RANK: (sourceRow, rows, args, windowSpec) => {
         if (rows.length === 1) {
             return 0;
         }
@@ -767,7 +767,7 @@ const WINDOW_FUNCTIONS = {
 
         return (i + 1) / (rows.length - 1);
     },
-    CUME_DIST: function (sourceRow, rows, args, windowSpec) {
+    CUME_DIST: (sourceRow, rows, args, windowSpec) => {
         const orderBy = getOrderBy(windowSpec);
 
         const index = rows.indexOf(sourceRow);
@@ -779,7 +779,7 @@ const WINDOW_FUNCTIONS = {
         }
         return i / rows.length;
     },
-    PERCENTILE_DIST: function (sourceRow, rows, args, windowSpec) {
+    PERCENTILE_DIST: (sourceRow, rows, args, windowSpec) => {
         if (typeof windowSpec?.orderBy !== "string") {
             throw Error(`PERCENTILE_DIST requires orderBy to be specified as a string`);
         }
@@ -804,7 +804,7 @@ const WINDOW_FUNCTIONS = {
 
         return null;
     },
-    PERCENTILE_CONT: function (sourceRow, rows, args, windowSpec) {
+    PERCENTILE_CONT: (sourceRow, rows, args, windowSpec) => {
         if (typeof windowSpec?.orderBy !== "string") {
             throw Error(`PERCENTILE_CONT requires orderBy to be specified as a string`);
         }
@@ -843,27 +843,27 @@ const WINDOW_FUNCTIONS = {
  * @type {{ [name: string]: ((sourceRow: RowObject, rows: RowObject[], args: string[], values: any[]) => any) }}
  */
 const POSITION_FUNCTIONS = {
-    LEAD: function (sourceRow, rows, args, values) {
+    LEAD: (sourceRow, rows, args, values) => {
         const index = rows.indexOf(sourceRow);
         let delta = 1;
         if (args.length > 1)
             delta = +args[1];
         return values[index + delta] || null;
     },
-    LAG: function (sourceRow, rows, args, values) {
+    LAG: (sourceRow, rows, args, values) => {
         let delta = 1;
         if (args.length > 1)
             delta = +args[1];
         const index = rows.indexOf(sourceRow);
         return values[index - delta] || null;
     },
-    FIRST_VALUE: function (sourceRow, rows, args, values) {
+    FIRST_VALUE: (sourceRow, rows, args, values) => {
         return values[0];
     },
-    LAST_VALUE: function (sourceRow, rows, args, values) {
+    LAST_VALUE: (sourceRow, rows, args, values) => {
         return values[values.length - 1];
     },
-    NTH_VALUE: function (sourceRow, rows, args, values) {
+    NTH_VALUE: (sourceRow, rows, args, values) => {
         return values[+args[1] - 1] || null;
     },
 }
