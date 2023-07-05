@@ -249,11 +249,7 @@ console.table(results.toArray());</code></p>
                 in the current group. It is therefore possible to define
                 arbitrary aggregate functions. For instance, the
                 <code>SUM(a)</code> aggregate function could be re-defined as
-                shown below. <em>Note: there's no way for <b>CSVDB</b> to know a
-                custom function on its own is supposed to be an aggregate
-                function. It is therefore necessary to include a GROUP BY
-                clause, or at least one built-in aggregate function to ensure
-                rows are grouped.</em>
+                shown below.
             </p>
             <p class="code"><code>const results = db.query()
     .select({
@@ -571,18 +567,25 @@ console.table(results2.toArray());</code></p>
                 output("#output-distinct", results2);
             </script>
 
-            <h2>WINDOW</h2>
+            <h2>OVER and WINDOW</h2>
             <p>
                 The <code>OVER</code> clause is supported with window functions
-                but only with named windows. Use the <code>.window()</code>
-                method to specify named window specs.
+                using two different syntaxes.
+                The first is a string using the <code>OVER</code> keyword. The
+                second is by using a two-element array. The first item in the
+                array can either be a string specifying a builtin function, or a
+                JS function.
+                The second item in the array can either be a named window or, a
+                single use window specification.
+                Use the <code>.window()</code> method to specify named window
+                specs.
                 The <code>ROW_NUMBER()</code> function is a function which
                 numbers rows in the current group/partition with a 1-based
                 index. The <code>partitionBy</code> and <code>orderBy</code>
                 properties can be specified as either a function, or a string
-                giving the property of the row object to use for partition or
+                giving the property of the row object to use for partitioning or
                 ordering.
-                When the value of <code>orderBy</code> is a string, if the
+                When the value of <code>orderBy</code> is a string: if the
                 string starts with <code>+</code> then the values are compared
                 numerically, otherwise values are compared as strings.
             </p>
@@ -599,15 +602,21 @@ const results = db.query()
     .window("win3", {
         partitionBy:    "a",
         orderBy:        "+b",
-        framing:        ["ROWS", Number.NEGATIVE_INFINITY, 0],
+        framing:        ["ROWS", "UNBOUNDED PRECEDING", "CURRENT ROW"],
     })
     .select({
         "*": "*",
+
         count: "COUNT(*) OVER win1",
+        count2: ["COUNT(*)", "win1"],
+        count3: [(row, i, rows) => rows.length, "win1"],
+        count4: ["COUNT(*)", { partitionBy: "a" }],
+
         rowNumber: "ROW_NUMBER() OVER win2",
         list: "LISTAGG(c) OVER win2",
-        rowNumber2: "ROW_NUMBER() OVER win3",
-        list2: "LISTAGG(c) OVER win3",
+
+        rowNumberAlt: "ROW_NUMBER() OVER win3",
+        listAlt: "LISTAGG(c) OVER win3",
     });
 console.table(results.toArray());</code></p>
             <output id="output-window"></output>
@@ -626,15 +635,21 @@ console.table(results.toArray());</code></p>
                     .window("win3", {
                         partitionBy:    "a",
                         orderBy:        "+b",
-                        framing:        ["ROWS", Number.NEGATIVE_INFINITY, 0],
+                        framing:        ["ROWS", "UNBOUNDED PRECEDING", "CURRENT ROW"],
                     })
                     .select({
                         "*": "*",
+
                         count: "COUNT(*) OVER win1",
+                        count2: ["COUNT(*)", "win1"],
+                        count3: [(row, i, rows) => rows.length, "win1"],
+                        count4: ["COUNT(*)", { partitionBy: "a" }],
+
                         rowNumber: "ROW_NUMBER() OVER win2",
                         list: "LISTAGG(c) OVER win2",
-                        rowNumber2: "ROW_NUMBER() OVER win3",
-                        list2: "LISTAGG(c) OVER win3",
+
+                        rowNumberAlt: "ROW_NUMBER() OVER win3",
+                        listAlt: "LISTAGG(c) OVER win3",
                     });
                 output("#output-window", results);
             </script>
