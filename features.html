@@ -769,6 +769,53 @@ console.table(results.toArray());</code></p>
                 output("#output-position", results);
             </script>
 
+            <h3>Statistical Functions</h3>
+            <p>The following statistical functions are defined.</p>
+            <p class="code"><code>const db = new CSVDB("a,b,c\n1,2,3\n2,4,8\n1,4,7\n4,5,6");
+const results = db.query()
+.window("win1", {
+    orderBy:        "+c",
+    framing:        ["ROWS", "UNBOUNDED PRECEDING", "UNBOUNDED FOLLOWING"],
+})
+.select({
+    "*": "*",
+    min:        "MIN(b) OVER ()",
+    p25:        "PERCENTILE_DIST(0.25) OVER win1",
+    median:     "PERCENTILE_DIST(0.5) OVER win1",
+    p75:        "PERCENTILE_DIST(0.75) OVER win1",
+    max:        "MAX(b) OVER ()",
+    average:    "AVG(b) OVER ()",
+    stdDevPop:  "STDDEV_POP(b) OVER ()",
+    stdDevSamp: "STDDEV_SAMP(b) OVER ()",
+    varPop:     "VAR_POP(b) OVER ()",
+    varSamp:    "VAR_SAMP(b) OVER ()",
+});
+console.table(results.toArray());</code></p>
+            <output id="output-stats"></output>
+            <script type="module">
+                import { CSVDB } from "./csvdb.js";
+                const db = new CSVDB("a,b,c\n1,2,3\n2,4,8\n1,4,7\n4,5,6");
+                const results = db.query()
+                    .window("win1", {
+                        orderBy:        "+c",
+                        framing:        ["ROWS", "UNBOUNDED PRECEDING", "UNBOUNDED FOLLOWING"],
+                    })
+                    .select({
+                        "*": "*",
+                        min:        "MIN(c) OVER ()",
+                        p25:        "PERCENTILE_DIST(0.25) OVER win1",
+                        median:     "PERCENTILE_DIST(0.5) OVER win1",
+                        p75:        "PERCENTILE_DIST(0.75) OVER win1",
+                        max:        "MAX(c) OVER ()",
+                        average:    "AVG(c) OVER ()",
+                        stdDevPop:  "STDDEV_POP(c) OVER ()",
+                        stdDevSamp: "STDDEV_SAMP(c) OVER ()",
+                        varPop:     "VAR_POP(c) OVER ()",
+                        varSamp:    "VAR_SAMP(c) OVER ()",
+                    });
+                output("#output-stats", results);
+            </script>
+
             <h3>Empty Window</h3>
             <p>A shortcut to specify an empty window.</p>
             <p class="code"><code>

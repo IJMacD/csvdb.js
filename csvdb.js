@@ -451,6 +451,10 @@ class CSVDBQuery {
 
                     value = POSITION_FUNCTIONS[fnName](sourceRow, rows, args, values);
                 }
+                else if (fnName in STAT_FUNCTIONS) {
+                    let values = rows.map(row => row[args[0]]);
+                    value = STAT_FUNCTIONS[fnName](values);
+                }
                 else {
                     throw Error(`Function '${fnName} not recognised`);
                 }
@@ -467,7 +471,10 @@ class CSVDBQuery {
                             sourceRow :
                             Object.fromEntries(
                                 Object.entries(sourceRow)
-                                    .map(([key,value]) => [`${alias}${key}`,value])
+                                    .map(([key,value]) => [
+                                        `${alias}${key}`,
+                                        value
+                                    ])
                             )
                     );
                 }
@@ -503,8 +510,9 @@ function applyWindow(rows, windowSpec, sourceRow) {
         let framingEnd = 0;
 
         if (windowSpec.framing) {
-            if (windowSpec.framing[0] === "RANGE") {
-                throw Error("Not Implemented: Window Spec RANGE");
+            const unit = windowSpec.framing[0];
+            if (unit !== "ROWS") {
+                throw Error(`Not Implemented: Window unit ${unit}`);
             }
 
             if (typeof windowSpec.framing[1] === "number") {
@@ -705,10 +713,13 @@ function *unionAll (resultsA, resultsB) {
     }
 }
 
+/** @type {(value: any[]) => any} */
+const SUM = values => values.reduce((total, v) => total + +v, 0);
+
 /** @type {{ [name: string]: (value: any[]) => any }} */
 const AGGREGATE_FUNCTIONS = {
-    SUM: values => values.reduce((total, v) => total + +v, 0),
-    AVG: values => values.reduce((total, v) => total + +v, 0) / values.length,
+    SUM,
+    AVG: values => SUM(values) / values.length,
     MAX: values => Math.max(...values),
     MIN: values => Math.min(...values),
     COUNT: values => values.length,
@@ -866,4 +877,19 @@ const POSITION_FUNCTIONS = {
     NTH_VALUE: (sourceRow, rows, args, values) => {
         return values[+args[1] - 1] || null;
     },
-}
+};
+
+const VARIANCE_SUM = (/** @type {any[]} */ values) => {
+    const n = values.length;
+    const mean = SUM(values) / n;
+    const sum = values.reduce((total, v) => total + Math.pow(+v - mean, 2), 0);
+    return Math.sqrt(sum / n);
+};
+
+/** @type {{ [name: string]: (value: any[]) => any }} */
+const STAT_FUNCTIONS = {
+    STDDEV_POP: values => Math.sqrt(VARIANCE_SUM(values) / values.length),
+    STDDEV_SAMP: values => Math.sqrt(VARIANCE_SUM(values) / (values.length - 1)),
+    VAR_POP: values => VARIANCE_SUM(values) / values.length,
+    VAR_SAMP: values => VARIANCE_SUM(values) / (values.length - 1),
+};
