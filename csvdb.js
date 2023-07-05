@@ -3,6 +3,10 @@
  */
 
 /**
+ * @typedef {import("./csvdb").SelectObject} SelectObject
+ */
+
+/**
  * @typedef {import("./csvdb").WindowSpec} WindowSpec
  */
 
@@ -85,7 +89,7 @@ class CSVDBQuery {
     #where = [];
     /** @type {((row: RowObject) => any)?} */
     #groupBy = null;
-    /** @type {{ [alias: string]: string|((row: RowObject) => any) }?} */
+    /** @type {SelectObject?} */
     #selection = null;
     /** @type {((rowA: RowObject, rowB: RowObject) => number)?} */
     #sort = null;
@@ -277,7 +281,7 @@ class CSVDBQuery {
             (
                 this.#selection &&
                 Object.values(this.#selection)
-                    .some(s => typeof s === "string" && s.endsWith(" OVER ()"))
+                    .some(s => (typeof s === "string" && s.endsWith(" OVER ()")) || Array.isArray(s))
             );
 
         if(this.#groupBy) {
@@ -326,12 +330,12 @@ class CSVDBQuery {
     #hasAggregates () {
         if (!this.#selection) return false;
 
-        return Object.values(this.#selection).some(isAggregate);
+        return Object.values(this.#selection).some(s => typeof s === "string" && isAggregate(s));
     }
 
     /**
      * @param {RowObject} sourceRow
-     * @param {{ [alias: string]: string|((row: RowObject, index: number, groupRows: RowObject[]) => any) }?} selection
+     * @param {SelectObject?} selection
      * @param {number} index
      * @param {RowObject[]} groupRows
      */
@@ -343,280 +347,132 @@ class CSVDBQuery {
         }
 
         for (const [alias, col] of Object.entries(selection)) {
+            let fn;
+            let field;
+            let fnName;
+            let args;
+            let windowName;
+            let windowSpec;
 
+            const re = /^([A-Z_]+)\(([^)]*)\)(?:\s+OVER\s+([\w\d_]+|\(\)))?$/;
+
+            // Easily dealt with
             if (col instanceof Function) {
                 out[alias] = col(sourceRow, index, groupRows);
+                continue;
             }
-            else {
-                const aggregateMatch = /^([A-Z_]+)\(([^)]*)\)(?:\s+OVER\s+([\w\d_]+|\(\)))?$/.exec(col);
-                if (aggregateMatch) {
-                    const fnName = aggregateMatch[1];
-                    const args = aggregateMatch[2].split(",");
-                    const colName = args[0];
-                    const windowName = aggregateMatch[3];
 
-                    let rows = groupRows;
-                    let windowSpec;
-                    /** @type {(rowA: RowObject, rowB: RowObject) => number} */
-                    let orderBy;
+            // Now check for array syntax
+            if (Array.isArray(col)) {
+                const [ fnOrFnName, windowNameOrSpec ] = col;
 
-                    if (windowName) {
-                        windowSpec = windowName === "()" ?
-                            {} :
-                            this.#windowSpecs.get(windowName);
+                if (typeof fnOrFnName === "string") {
+                    const fnString = fnOrFnName;
 
-                        if (!windowSpec) {
-                            throw Error (`Window "${windowName}" not specified`);
+                    const aggregateMatch = re.exec(fnString);
+                    if (aggregateMatch) {
+                        fnName = aggregateMatch[1];
+                        args = aggregateMatch[2].split(",");
+
+                        if (aggregateMatch[3]) {
+                            throw Error("Cannot specify OVER clause in string");
                         }
-
-                        if (windowSpec.partitionBy) {
-                            const fn = typeof windowSpec.partitionBy === "string" ? (/** @type {RowObject} */ row) => row[windowSpec.partitionBy] : windowSpec.partitionBy;
-                            const sympatheticValue = fn(sourceRow);
-                            rows = rows.filter(row => fn(row) === sympatheticValue);
-                        }
-
-                        if (windowSpec.orderBy) {
-                            if (typeof windowSpec.orderBy === "string") {
-                                let k = windowSpec.orderBy;
-                                if (k[0] === "+") {
-                                    k = k.substring(1);
-                                    orderBy = (rowA, rowB) => +rowA[k] - +rowB[k];
-                                }
-                                else {
-                                    orderBy = (rowA, rowB) => rowA[k].localeCompare(rowB[k]);
-                                }
-                            }
-                            else {
-                                orderBy = windowSpec.orderBy;
-                            }
-
-                            rows = [...rows].sort(orderBy);
-
-                            let framingStart = Number.NEGATIVE_INFINITY;
-                            let framingEnd = 0;
-
-                            if (windowSpec.framing) {
-                                if (windowSpec.framing[0] === "RANGE") {
-                                    throw Error("Not Implemented: Window Spec RANGE");
-                                }
-
-                                if (typeof windowSpec.framing[1] === "number") {
-                                    framingStart = windowSpec.framing[1];
-                                }
-                                else if (windowSpec.framing[1] === "UNBOUNDED PRECEDING") {
-                                    framingStart = Number.NEGATIVE_INFINITY;
-                                }
-                                else if (windowSpec.framing[1] === "CURRENT ROW") {
-                                    framingStart = 0;
-                                }
-
-                                if (typeof windowSpec.framing[2] === "number") {
-                                    framingEnd = windowSpec.framing[2];
-                                }
-                                else if (windowSpec.framing[2] === "UNBOUNDED FOLLOWING") {
-                                    framingEnd = Number.POSITIVE_INFINITY;
-                                }
-                                else if (windowSpec.framing[2] === "CURRENT ROW") {
-                                    framingEnd = 0;
-                                }
-                            }
-
-                            const index = rows.indexOf(sourceRow);
-
-                            const startIndex = Math.max(index + framingStart, 0);
-                            const endIndex = index + framingEnd + 1;
-
-                            rows = rows.slice(startIndex, endIndex);
-                        }
-                    }
-
-                    let values = rows.map(row => row[colName]);
-
-                    let value;
-
-                    if (fnName === "SUM") {
-                        value = values.reduce((total, v) => total + +v, 0);
-                    }
-                    else if (fnName === "AVG") {
-                        value = values.reduce((total, v) => total + +v, 0) / values.length;
-                    }
-                    else if (fnName === "MAX") {
-                        value = Math.max(...values);
-                    }
-                    else if (fnName === "MIN") {
-                        value = Math.min(...values);
-                    }
-                    else if (fnName === "COUNT") {
-                        value = values.length;
-                    }
-                    else if (fnName === "LISTAGG") {
-                        value = values.join();
-                    }
-                    else if (fnName === "ARRAY") {
-                        value = values;
-                    }
-                    else if (fnName === "JSON") {
-                        value = JSON.stringify(values);
-                    }
-                    else if (fnName === "ANY") {
-                        value = values[0];
-                    }
-                    else if (fnName === "ROW_NUMBER") {
-                        value = rows.indexOf(sourceRow) + 1;
                     }
                     else {
-                        orderByCheck(windowSpec, fnName);
-
-                        if (fnName === "RANK") {
-                            const index = rows.indexOf(sourceRow);
-                            let i = index;
-                            for (; i >= 0; i--) {
-                                // @ts-ignore
-                                const order = orderBy(rows[i], sourceRow);
-                                if (order !== 0) break;
-                            }
-                            value = i + 2;
-                        }
-                        else if (fnName === "DENSE_RANK") {
-                            const index = rows.indexOf(sourceRow);
-                            let count = 0;
-                            for (let i = 1; i <= index; i++) {
-                                // @ts-ignore
-                                const order = orderBy(rows[i-1], rows[i]);
-                                if (order === 0) count++;
-                            }
-                            value = index - count + 1;
-                        }
-                        else if (fnName === "NTILE") {
-                            const index = rows.indexOf(sourceRow);
-                            value = Math.floor(+args[0] * index / rows.length) + 1;
-                        }
-                        else if (fnName === "PERCENT_RANK") {
-                            if (rows.length === 1) {
-                                value = 0;
-                            }
-                            else {
-                                const index = rows.indexOf(sourceRow);
-                                let i = index;
-                                for (; i >= 0; i--) {
-                                    // @ts-ignore
-                                    const order = orderBy(rows[i], sourceRow);
-                                    if (order !== 0) break;
-                                }
-                                value = (i + 1) / (rows.length - 1);
-                            }
-                        }
-                        else if (fnName === "CUME_DIST") {
-                            const index = rows.indexOf(sourceRow);
-                            let i = index + 1;
-                            for (; i < rows.length; i++) {
-                                // @ts-ignore
-                                const order = orderBy(rows[i], sourceRow);
-                                if (order !== 0) break;
-                            }
-                            value = i / rows.length;
-                        }
-                        else if (fnName === "PERCENTILE_DIST") {
-                            if (typeof windowSpec?.orderBy !== "string") {
-                                throw Error(`PERCENTILE_DIST requires orderBy to be specified as a string`);
-                            }
-
-                            let k = windowSpec.orderBy;
-                            if (k[0] === "+") {
-                                k = k.substring(1);
-                            }
-
-                            const percentile = +args[0];
-
-                            value = null;
-
-                            for (let i = 0; i < rows.length; i++) {
-                                for (let j = i + 1; j < rows.length; j++) {
-                                    if (rows[i][k] !== rows[j][k]) break;
-                                }
-                                const p = i / rows.length;
-
-                                if (p >= percentile) {
-                                    value = rows[i][k];
-                                    break;
-                                }
-                            }
-                        }
-                        else if (fnName === "PERCENTILE_CONT") {
-                            if (typeof windowSpec?.orderBy !== "string") {
-                                throw Error(`PERCENTILE_CONT requires orderBy to be specified as a string`);
-                            }
-
-                            let k = windowSpec.orderBy;
-                            if (k[0] === "+") {
-                                k = k.substring(1);
-                            }
-
-                            const percentile = +args[0];
-
-                            value = null;
-
-                            let prevP = 0;
-
-                            for (let i = 0; i < rows.length; i++) {
-                                let j = i + 1;
-                                for (; j < rows.length; j++) {
-                                    if (rows[i][k] !== rows[j][k]) break;
-                                }
-                                const p = j / rows.length;
-
-                                if (p >= percentile) {
-                                    const x = (percentile - prevP)/(p - prevP);
-                                    const a = +rows[i-1][k];
-                                    const b = +rows[i][k];
-                                    value = x * (b - a) + a;
-                                    break;
-                                }
-
-                                prevP = p;
-                            }
-                        }
-                        else if (fnName === "LEAD") {
-                            const index = rows.indexOf(sourceRow);
-                            let delta = 1;
-                            if (args.length > 1)
-                                delta = +args[1];
-                            value = values[index + delta] || null;
-                        }
-                        else if (fnName === "LAG") {
-                            let delta = 1;
-                            if (args.length > 1)
-                                delta = +args[1];
-                            const index = rows.indexOf(sourceRow);
-                            value = values[index - delta] || null;
-                        }
-                        else if (fnName === "FIRST_VALUE") {
-                            value = values[0];
-                        }
-                        else if (fnName === "LAST_VALUE") {
-                            value = values[values.length - 1];
-                        }
-                        else if (fnName === "NTH_VALUE") {
-                            value = values[+args[1] - 1] || null;
-                        }
+                        throw Error(`Expected function but got: ${fnString}`);
                     }
-
-                    out[alias] = value;
                 }
-                else if (sourceRow) {
-                    if (col === "*") {
-                        Object.assign(out,
-                            (alias === "*") ?
-                                sourceRow :
-                                Object.fromEntries(
-                                    Object.entries(sourceRow)
-                                        .map(([key,value]) => [`${alias}${key}`,value])
-                                )
-                        );
-                    }
-                    else {
-                        out[alias] = sourceRow[col];
-                    }
+                else {
+                    fn = fnOrFnName;
+                }
+
+                if (typeof windowNameOrSpec === "string") {
+                    windowName = windowNameOrSpec;
+                }
+                else {
+                    windowSpec = windowNameOrSpec;
+                }
+
+            }
+            // It must be a string
+            else {
+                const aggregateMatch = re.exec(col);
+                if (aggregateMatch) {
+                    fnName = aggregateMatch[1];
+                    args = aggregateMatch[2].split(",");
+                    windowName = aggregateMatch[3];
+                }
+                else {
+                    field = col;
+                }
+            }
+
+            if (windowName) {
+                windowSpec = windowName === "()" ?
+                    {} :
+                    this.#windowSpecs.get(windowName);
+
+                if (!windowSpec) {
+                    throw Error (`Window "${windowName}" not specified`);
+                }
+            }
+
+            let rows = groupRows;
+
+            if (windowSpec) {
+                rows = applyWindow(rows, windowSpec, sourceRow);
+            }
+
+            // If we have a function we can apply it now and continue
+            if (fn) {
+                out[alias] = fn(sourceRow, index, rows);
+                continue;
+            }
+
+            // If we have a builtin function name then evaluate it and continue
+            if (fnName && args) {
+                let value;
+
+                if (fnName === "ROW_NUMBER") {
+                    value = rows.indexOf(sourceRow) + 1;
+                }
+                else if (fnName in AGGREGATE_FUNCTIONS) {
+                    let values = rows.map(row => row[args[0]]);
+                    value = AGGREGATE_FUNCTIONS[fnName](values);
+                }
+                else if (fnName in WINDOW_FUNCTIONS && windowSpec) {
+                    orderByCheck(windowSpec, fnName);
+
+                    value = WINDOW_FUNCTIONS[fnName](sourceRow, rows, args, windowSpec);
+                }
+                else if (fnName in POSITION_FUNCTIONS && windowSpec) {
+                    orderByCheck(windowSpec, fnName);
+                    let values = rows.map(row => row[args[0]]);
+
+                    value = POSITION_FUNCTIONS[fnName](sourceRow, rows, args, values);
+                }
+                else {
+                    throw Error(`Function '${fnName} not recognised`);
+                }
+
+                out[alias] = value;
+                continue;
+            }
+
+            // As long as the source row isn't null we can just copy the properties
+            if (sourceRow) {
+                if (col === "*") {
+                    Object.assign(out,
+                        (alias === "*") ?
+                            sourceRow :
+                            Object.fromEntries(
+                                Object.entries(sourceRow)
+                                    .map(([key,value]) => [`${alias}${key}`,value])
+                            )
+                    );
+                }
+                else if (field) {
+                    out[alias] = sourceRow[field];
                 }
             }
         }
@@ -625,6 +481,87 @@ class CSVDBQuery {
     }
 }
 
+/**
+ * @param {RowObject[]} rows
+ * @param {WindowSpec} windowSpec
+ * @param {RowObject} sourceRow
+ */
+function applyWindow(rows, windowSpec, sourceRow) {
+    if (windowSpec.partitionBy) {
+        const pb = windowSpec.partitionBy;
+        const fn = typeof pb === "string" ? (/** @type {RowObject} */ row) => row[pb] : pb;
+        const sympatheticValue = fn(sourceRow);
+        rows = rows.filter(row => fn(row) === sympatheticValue);
+    }
+
+    if (windowSpec.orderBy) {
+        const orderBy = getOrderBy(windowSpec);
+
+        rows = [...rows].sort(orderBy);
+
+        let framingStart = Number.NEGATIVE_INFINITY;
+        let framingEnd = 0;
+
+        if (windowSpec.framing) {
+            if (windowSpec.framing[0] === "RANGE") {
+                throw Error("Not Implemented: Window Spec RANGE");
+            }
+
+            if (typeof windowSpec.framing[1] === "number") {
+                framingStart = windowSpec.framing[1];
+            }
+            else if (windowSpec.framing[1] === "UNBOUNDED PRECEDING") {
+                framingStart = Number.NEGATIVE_INFINITY;
+            }
+            else if (windowSpec.framing[1] === "CURRENT ROW") {
+                framingStart = 0;
+            }
+
+            if (typeof windowSpec.framing[2] === "number") {
+                framingEnd = windowSpec.framing[2];
+            }
+            else if (windowSpec.framing[2] === "UNBOUNDED FOLLOWING") {
+                framingEnd = Number.POSITIVE_INFINITY;
+            }
+            else if (windowSpec.framing[2] === "CURRENT ROW") {
+                framingEnd = 0;
+            }
+        }
+
+        const index = rows.indexOf(sourceRow);
+
+        const startIndex = Math.max(index + framingStart, 0);
+        const endIndex = index + framingEnd + 1;
+
+        rows = rows.slice(startIndex, endIndex);
+    }
+
+    return rows;
+}
+
+/**
+ * @param {WindowSpec} windowSpec
+ * @returns {(rowA: RowObject, rowB: RowObject) => number}
+ */
+function getOrderBy (windowSpec) {
+    if (typeof windowSpec.orderBy === "string") {
+        let k = windowSpec.orderBy;
+        if (k[0] === "+") {
+            k = k.substring(1);
+            return (rowA, rowB) => +rowA[k] - +rowB[k];
+        }
+
+        return (rowA, rowB) => rowA[k].localeCompare(rowB[k]);
+    }
+
+    // @ts-ignore
+    return windowSpec.orderBy;
+}
+
+/**
+ * @param {WindowSpec} windowSpec
+ * @param {string} fnName
+ */
 function orderByCheck (windowSpec, fnName) {
     if (!windowSpec?.orderBy)
         throw Error(`ORDER BY clause required in windows spec for ${fnName}`);
@@ -766,4 +703,167 @@ function *unionAll (resultsA, resultsB) {
     for (const result of resultsB) {
         yield result;
     }
+}
+
+/** @type {{ [name: string]: (value: any[]) => any }} */
+const AGGREGATE_FUNCTIONS = {
+    SUM: values => values.reduce((total, v) => total + +v, 0),
+    AVG: values => values.reduce((total, v) => total + +v, 0) / values.length,
+    MAX: values => Math.max(...values),
+    MIN: values => Math.min(...values),
+    COUNT: values => values.length,
+    LISTAGG: values => values.join(),
+    ARRAY: values => values,
+    JSON: values => JSON.stringify(values),
+    ANY: values => values[0],
+};
+
+/**
+ * @type {{ [name: string]: ((sourceRow: RowObject, rows: RowObject[], args: string[], windowSpec: WindowSpec) => any) }}
+ */
+const WINDOW_FUNCTIONS = {
+    RANK: function (sourceRow, rows, args, windowSpec) {
+        const orderBy = getOrderBy(windowSpec);
+
+        const index = rows.indexOf(sourceRow);
+        let i = index;
+        for (; i >= 0; i--) {
+            // @ts-ignore
+            const order = orderBy(rows[i], sourceRow);
+            if (order !== 0) break;
+        }
+        return i + 2;
+    },
+    DENSE_RANK: function (sourceRow, rows, args, windowSpec) {
+        const orderBy = getOrderBy(windowSpec);
+
+        const index = rows.indexOf(sourceRow);
+        let count = 0;
+        for (let i = 1; i <= index; i++) {
+            // @ts-ignore
+            const order = orderBy(rows[i-1], rows[i]);
+            if (order === 0) count++;
+        }
+        return index - count + 1;
+    },
+    NTILE: function (sourceRow, rows, args, windowSpec) {
+        const index = rows.indexOf(sourceRow);
+        return Math.floor(+args[0] * index / rows.length) + 1;
+    },
+    PERCENT_RANK: function (sourceRow, rows, args, windowSpec) {
+        if (rows.length === 1) {
+            return 0;
+        }
+
+        const orderBy = getOrderBy(windowSpec);
+
+        const index = rows.indexOf(sourceRow);
+        let i = index;
+        for (; i >= 0; i--) {
+            // @ts-ignore
+            const order = orderBy(rows[i], sourceRow);
+            if (order !== 0) break;
+        }
+
+        return (i + 1) / (rows.length - 1);
+    },
+    CUME_DIST: function (sourceRow, rows, args, windowSpec) {
+        const orderBy = getOrderBy(windowSpec);
+
+        const index = rows.indexOf(sourceRow);
+        let i = index + 1;
+        for (; i < rows.length; i++) {
+            // @ts-ignore
+            const order = orderBy(rows[i], sourceRow);
+            if (order !== 0) break;
+        }
+        return i / rows.length;
+    },
+    PERCENTILE_DIST: function (sourceRow, rows, args, windowSpec) {
+        if (typeof windowSpec?.orderBy !== "string") {
+            throw Error(`PERCENTILE_DIST requires orderBy to be specified as a string`);
+        }
+
+        let k = windowSpec.orderBy;
+        if (k[0] === "+") {
+            k = k.substring(1);
+        }
+
+        const percentile = +args[0];
+
+        for (let i = 0; i < rows.length; i++) {
+            for (let j = i + 1; j < rows.length; j++) {
+                if (rows[i][k] !== rows[j][k]) break;
+            }
+            const p = i / rows.length;
+
+            if (p >= percentile) {
+                return rows[i][k];
+            }
+        }
+
+        return null;
+    },
+    PERCENTILE_CONT: function (sourceRow, rows, args, windowSpec) {
+        if (typeof windowSpec?.orderBy !== "string") {
+            throw Error(`PERCENTILE_CONT requires orderBy to be specified as a string`);
+        }
+
+        let k = windowSpec.orderBy;
+        if (k[0] === "+") {
+            k = k.substring(1);
+        }
+
+        const percentile = +args[0];
+
+        let prevP = 0;
+
+        for (let i = 0; i < rows.length; i++) {
+            let j = i + 1;
+            for (; j < rows.length; j++) {
+                if (rows[i][k] !== rows[j][k]) break;
+            }
+            const p = j / rows.length;
+
+            if (p >= percentile) {
+                const x = (percentile - prevP)/(p - prevP);
+                const a = +rows[i-1][k];
+                const b = +rows[i][k];
+                return x * (b - a) + a;
+            }
+
+            prevP = p;
+        }
+
+        return null;
+    },
+}
+
+/**
+ * @type {{ [name: string]: ((sourceRow: RowObject, rows: RowObject[], args: string[], values: any[]) => any) }}
+ */
+const POSITION_FUNCTIONS = {
+    LEAD: function (sourceRow, rows, args, values) {
+        const index = rows.indexOf(sourceRow);
+        let delta = 1;
+        if (args.length > 1)
+            delta = +args[1];
+        return values[index + delta] || null;
+    },
+    LAG: function (sourceRow, rows, args, values) {
+        let delta = 1;
+        if (args.length > 1)
+            delta = +args[1];
+        const index = rows.indexOf(sourceRow);
+        return values[index - delta] || null;
+    },
+    FIRST_VALUE: function (sourceRow, rows, args, values) {
+        return values[0];
+    },
+    LAST_VALUE: function (sourceRow, rows, args, values) {
+        return values[values.length - 1];
+    },
+    NTH_VALUE: function (sourceRow, rows, args, values) {
+        return values[+args[1] - 1] || null;
+    },
 }

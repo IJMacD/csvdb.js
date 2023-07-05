@@ -30,8 +30,10 @@ interface RowObject extends Object {
     [field: string]: any;
 }
 
+type SelectFunction = (row: RowObject, i: number, rows: RowObject[]) => any;
+
 interface SelectObject {
-    [alias: string]: string|((row: RowObject) => any);
+    [alias: string]: string|SelectFunction|[string|SelectFunction,string|WindowSpec];
 }
 
 interface WindowSpec {
