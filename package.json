@@ -4,7 +4,7 @@
   "version": "0.0.1",
   "type": "module",
   "scripts": {
-    "build": "terser ./csvdb.js -c -m --module -o build/csvdb.min.js",
+    "build": "terser ./csvdb.js -c passes=5,ecma=2015,unsafe=true,unsafe_arrows=true -m --module -o build/csvdb.min.js",
     "deploy": "gh-pages -d build"
   },
   "dependencies": {

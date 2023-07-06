@@ -791,21 +791,21 @@ console.table(results.toArray());</code></p>
             <p class="code"><code>const db = new CSVDB("a,b,c\n1,2,3\n2,4,8\n1,4,7\n4,5,6");
 const results = db.query()
 .window("win1", {
-    orderBy:        "+c",
+    orderBy:        "+b",
     framing:        ["ROWS", "UNBOUNDED PRECEDING", "UNBOUNDED FOLLOWING"],
 })
 .select({
-    "*": "*",
-    min:        "MIN(b) OVER ()",
+    input:      "LISTAGG(b)",
+    min:        "MIN(b)",
     p25:        "PERCENTILE_DIST(0.25) OVER win1",
     median:     "PERCENTILE_DIST(0.5) OVER win1",
     p75:        "PERCENTILE_DIST(0.75) OVER win1",
-    max:        "MAX(b) OVER ()",
-    average:    "AVG(b) OVER ()",
-    stdDevPop:  "STDDEV_POP(b) OVER ()",
-    stdDevSamp: "STDDEV_SAMP(b) OVER ()",
-    varPop:     "VAR_POP(b) OVER ()",
-    varSamp:    "VAR_SAMP(b) OVER ()",
+    max:        "MAX(b)",
+    average:    "AVG(b)",
+    stdDevPop:  "STDDEV_POP(b)",
+    stdDevSamp: "STDDEV_SAMP(b)",
+    varPop:     "VAR_POP(b)",
+    varSamp:    "VAR_SAMP(b)",
 });
 console.table(results.toArray());</code></p>
             <output id="output-stats"></output>
@@ -814,21 +814,21 @@ console.table(results.toArray());</code></p>
                 const db = new CSVDB("a,b,c\n1,2,3\n2,4,8\n1,4,7\n4,5,6");
                 const results = db.query()
                     .window("win1", {
-                        orderBy:        "+c",
+                        orderBy:        "+b",
                         framing:        ["ROWS", "UNBOUNDED PRECEDING", "UNBOUNDED FOLLOWING"],
                     })
                     .select({
-                        "*": "*",
-                        min:        "MIN(c) OVER ()",
+                        input:      "LISTAGG(b)",
+                        min:        "MIN(b)",
                         p25:        "PERCENTILE_DIST(0.25) OVER win1",
                         median:     "PERCENTILE_DIST(0.5) OVER win1",
                         p75:        "PERCENTILE_DIST(0.75) OVER win1",
-                        max:        "MAX(c) OVER ()",
-                        average:    "AVG(c) OVER ()",
-                        stdDevPop:  "STDDEV_POP(c) OVER ()",
-                        stdDevSamp: "STDDEV_SAMP(c) OVER ()",
-                        varPop:     "VAR_POP(c) OVER ()",
-                        varSamp:    "VAR_SAMP(c) OVER ()",
+                        max:        "MAX(b)",
+                        average:    "AVG(b)",
+                        stdDevPop:  "STDDEV_POP(b)",
+                        stdDevSamp: "STDDEV_SAMP(b)",
+                        varPop:     "VAR_POP(b)",
+                        varSamp:    "VAR_SAMP(b)",
                     });
                 output("#output-stats", results);
             </script>

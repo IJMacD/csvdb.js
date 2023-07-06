@@ -10,6 +10,9 @@
  * @typedef {import("./csvdb").WindowSpec} WindowSpec
  */
 
+const SI = Symbol.iterator;
+const IA = Array.isArray;
+
 export class CSVDB
 {
     /** @type {string[]} */
@@ -38,8 +41,8 @@ export class CSVDB
         this.#rows = /** @type {RowObject[]} */(rows.map(row => zip(this.#headers, row)));
     }
 
-    [Symbol.iterator] () {
-        return this.query()[Symbol.iterator]();
+    [SI] () {
+        return this.query()[SI]();
     }
 
     query () {
@@ -96,7 +99,7 @@ class CSVDBQuery {
     /** @type {Map<string, WindowSpec>} */
     #windowSpecs = new Map();
 
-    #limit = Number.POSITIVE_INFINITY;
+    #limit = Infinity;
 
     #distinct = false;
 
@@ -114,6 +117,7 @@ class CSVDBQuery {
      * Materialise rows and create a new query object from them
      */
     query () {
+        // @ts-ignore
         return new CSVDBQuery(this);
     }
 
@@ -148,6 +152,7 @@ class CSVDBQuery {
         this.#join.push(rowA => {
             // Materialise `other` just once
             if (typeof otherCache === "undefined") {
+                // @ts-ignore
                 otherCache = [...other];
             }
 
@@ -191,7 +196,7 @@ class CSVDBQuery {
      * @param {{ [alias: string]: string|((row: RowObject) => any) }|string[]} selection
      */
     select (selection) {
-        if (Array.isArray(selection)) {
+        if (IA(selection)) {
             this.#selection = {};
             for (const col of selection) {
                 this.#selection[col] = col;
@@ -241,13 +246,15 @@ class CSVDBQuery {
      * @returns
      */
     toArray () {
+        // @ts-ignore
         return [...this];
     }
 
     getNextRow () {
         if (!this.#internalIterator) {
-            this.#internalIterator = this[Symbol.iterator]();
+            this.#internalIterator = this[SI]();
         }
+        // @ts-ignore
         return this.#internalIterator.next().value;
     }
 
@@ -256,7 +263,7 @@ class CSVDBQuery {
         return row ? Object.values(row)[column] : undefined;
     }
 
-    *[Symbol.iterator] () {
+    *[SI] () {
         if (this.#limit === 0) {
             return;
         }
@@ -296,7 +303,7 @@ class CSVDBQuery {
             (
                 this.#selection &&
                 Object.values(this.#selection)
-                    .some(s => (typeof s === "string" && s.endsWith(" OVER ()")) || Array.isArray(s))
+                    .some(s => (typeof s === "string" && s.endsWith(" OVER ()")) || IA(s))
             );
 
         if(this.#groupBy) {
@@ -319,9 +326,9 @@ class CSVDBQuery {
         let i = 1;
         for (const row of rowIterator) {
             /** @type {RowObject[]} */
-            const rowGroup = Array.isArray(row) ? row :
+            const rowGroup = IA(row) ? row :
                 (haveWindowFunctions ? /** @type {RowObject[]} */(rowIterator) :  [row]);
-            const sourceRow = Array.isArray(row) ? rowGroup[0] : row;
+            const sourceRow = IA(row) ? rowGroup[0] : row;
 
             const result = this.#mapSelectionToRow(sourceRow, this.#selection, i, rowGroup);
 
@@ -378,7 +385,7 @@ class CSVDBQuery {
             }
 
             // Now check for array syntax
-            if (Array.isArray(col)) {
+            if (IA(col)) {
                 const [ fnOrFnName, windowNameOrSpec ] = col;
 
                 if (typeof fnOrFnName === "string") {
@@ -390,11 +397,11 @@ class CSVDBQuery {
                         args = aggregateMatch[2].split(",");
 
                         if (aggregateMatch[3]) {
-                            throw Error("Cannot specify OVER clause in string");
+                            throw Error("Unexpected OVER");
                         }
                     }
                     else {
-                        throw Error(`Expected function but got: ${fnString}`);
+                        throw Error(`Bad Func: ${fnString}`);
                     }
                 }
                 else {
@@ -428,7 +435,7 @@ class CSVDBQuery {
                     this.#windowSpecs.get(windowName);
 
                 if (!windowSpec) {
-                    throw Error (`Window "${windowName}" not specified`);
+                    throw Error (`Bad Window: ${windowName}`);
                 }
             }
 
@@ -471,7 +478,7 @@ class CSVDBQuery {
                     value = STAT_FUNCTIONS[fnName](values);
                 }
                 else {
-                    throw Error(`Function '${fnName} not recognised`);
+                    throw Error(`Bad Func: ${fnName}`);
                 }
 
                 out[alias] = value;
@@ -521,22 +528,24 @@ function applyWindow(rows, windowSpec, sourceRow) {
 
         rows = [...rows].sort(orderBy);
 
-        let framingStart = Number.NEGATIVE_INFINITY;
+        let framingStart = -Infinity;
         let framingEnd = 0;
 
         if (windowSpec.framing) {
             const unit = windowSpec.framing[0];
             if (unit !== "ROWS") {
-                throw Error(`Not Implemented: Window unit ${unit}`);
+                throw Error(`Window unit ${unit}`);
             }
+
+            const CURRENT_ROW = "CURRENT ROW";
 
             if (typeof windowSpec.framing[1] === "number") {
                 framingStart = windowSpec.framing[1];
             }
             else if (windowSpec.framing[1] === "UNBOUNDED PRECEDING") {
-                framingStart = Number.NEGATIVE_INFINITY;
+                framingStart = -Infinity;
             }
-            else if (windowSpec.framing[1] === "CURRENT ROW") {
+            else if (windowSpec.framing[1] === CURRENT_ROW) {
                 framingStart = 0;
             }
 
@@ -544,9 +553,9 @@ function applyWindow(rows, windowSpec, sourceRow) {
                 framingEnd = windowSpec.framing[2];
             }
             else if (windowSpec.framing[2] === "UNBOUNDED FOLLOWING") {
-                framingEnd = Number.POSITIVE_INFINITY;
+                framingEnd = Infinity;
             }
-            else if (windowSpec.framing[2] === "CURRENT ROW") {
+            else if (windowSpec.framing[2] === CURRENT_ROW) {
                 framingEnd = 0;
             }
         }
@@ -587,7 +596,7 @@ function getOrderBy (windowSpec) {
  */
 function orderByCheck (windowSpec, fnName) {
     if (!windowSpec?.orderBy)
-        throw Error(`ORDER BY clause required in windows spec for ${fnName}`);
+        throw Error(`ORDER BY required: ${fnName}`);
 }
 
 /**
@@ -807,63 +816,68 @@ const WINDOW_FUNCTIONS = {
         return i / rows.length;
     },
     PERCENTILE_DIST: (sourceRow, rows, args, windowSpec) => {
-        if (typeof windowSpec?.orderBy !== "string") {
-            throw Error(`PERCENTILE_DIST requires orderBy to be specified as a string`);
-        }
+        const result = findPercentile(rows, +args[0], windowSpec);
+        if (result) {
+            const [ index, key ] = result;
 
-        let k = windowSpec.orderBy;
-        if (k[0] === "+") {
-            k = k.substring(1);
-        }
-
-        const percentile = +args[0];
-
-        for (let i = 0; i < rows.length; i++) {
-            for (let j = i + 1; j < rows.length; j++) {
-                if (rows[i][k] !== rows[j][k]) break;
-            }
-            const p = i / rows.length;
-
-            if (p >= percentile) {
-                return rows[i][k];
-            }
+            return rows[index][key];
         }
 
         return null;
     },
     PERCENTILE_CONT: (sourceRow, rows, args, windowSpec) => {
-        if (typeof windowSpec?.orderBy !== "string") {
-            throw Error(`PERCENTILE_CONT requires orderBy to be specified as a string`);
+        const result = findPercentile(rows, +args[0], windowSpec);
+        if (result) {
+            const [ index, key, x ] = result;
+
+            const a = +rows[index-1][key];
+            const b = +rows[index][key];
+
+            return x * (b - a) + a;
         }
-
-        let k = windowSpec.orderBy;
-        if (k[0] === "+") {
-            k = k.substring(1);
-        }
-
-        const percentile = +args[0];
-
-        let prevP = 0;
-
-        for (let i = 0; i < rows.length; i++) {
-            let j = i + 1;
-            for (; j < rows.length; j++) {
-                if (rows[i][k] !== rows[j][k]) break;
-            }
-            const p = j / rows.length;
-
-            if (p >= percentile) {
-                const x = (percentile - prevP)/(p - prevP);
-                const a = +rows[i-1][k];
-                const b = +rows[i][k];
-                return x * (b - a) + a;
-            }
-
-            prevP = p;
-        }
-
         return null;
     },
+};
+
+/**
+ * @param {RowObject[]} rows
+ * @param {number} percentile
+ * @param {WindowSpec} windowSpec
+ * @returns {[index: number, key: string, linear: number]?}
+ */
+function findPercentile (rows, percentile, windowSpec) {
+    if (typeof windowSpec?.orderBy !== "string") {
+        throw Error(`ORDER BY must be string`);
+    }
+
+    let k = windowSpec.orderBy;
+    if (k[0] === "+") {
+        k = k.substring(1);
+    }
+
+    let prevP = 0;
+
+    for (let i = 0; i < rows.length; i++) {
+        let j = i + 1;
+        for (; j < rows.length; j++) {
+            if (rows[i][k] !== rows[j][k]) break;
+        }
+        const p = j / rows.length;
+
+        if (p >= percentile) {
+            const x = (percentile - prevP)/(p - prevP);
+
+            return [
+                i,
+                k,
+                x,
+            ];
+        }
+
+        prevP = p;
+    }
+
+    return null;
 }
 
 /**
