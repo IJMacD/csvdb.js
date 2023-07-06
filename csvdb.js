@@ -100,6 +100,9 @@ class CSVDBQuery {
 
     #distinct = false;
 
+    /** @type {Generator<RowObject>?} */
+    #internalIterator = null;
+
     /**
      * @param {Iterable<RowObject>} rows
      */
@@ -239,6 +242,18 @@ class CSVDBQuery {
      */
     toArray () {
         return [...this];
+    }
+
+    getNextRow () {
+        if (!this.#internalIterator) {
+            this.#internalIterator = this[Symbol.iterator]();
+        }
+        return this.#internalIterator.next().value;
+    }
+
+    getNextValue (column = 0) {
+        const row = this.getNextRow();
+        return row ? Object.values(row)[column] : undefined;
     }
 
     *[Symbol.iterator] () {

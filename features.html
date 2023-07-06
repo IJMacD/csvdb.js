@@ -2,11 +2,11 @@
 <html>
     <head>
         <title>Features</title>
-        <script>
-            const styles = ["mssql", "term", "mssql2000"];
-            const style = styles[Math.floor(Math.random()*styles.length)];
+        <script type="module">
+            import { CSVDB } from "./csvdb.js";
+            const style = (new CSVDB("a\nmssql\nterm\nmssql2000")).query().select(["RANDOM(a)"]).getNextValue();
 
-            function output (target, data) {
+            window["output"] = function (target, data) {
                 if (typeof data === "string") {
                     document.querySelector(target).innerHTML += `<p>${data.replace("<","&lt;")}</p>`;
                     return;
@@ -33,7 +33,7 @@
                 }
 
                 document.querySelector(target).innerHTML += html;
-            }
+            };
         </script>
         <style>
             body { font-family: 'Lucida Sans', 'Lucida Sans Regular', 'Lucida Grande', 'Lucida Sans Unicode', Geneva, Verdana, sans-serif; }
