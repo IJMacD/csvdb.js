@@ -727,6 +727,7 @@ const AGGREGATE_FUNCTIONS = {
     ARRAY: values => values,
     JSON: values => JSON.stringify(values),
     ANY: values => values[0],
+    RANDOM: values => values[Math.floor(Math.random()*values.length)],
 };
 
 /**
