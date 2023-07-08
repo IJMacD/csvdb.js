@@ -30,12 +30,14 @@ interface RowObject extends Object {
     [field: string]: any;
 }
 
+type SelectFunction = (row: RowObject, i: number, rows: RowObject[]) => any;
+
 interface SelectObject {
-    [alias: string]: string|((row: RowObject) => any);
+    [alias: string]: string|SelectFunction|[string|SelectFunction,string|WindowSpec];
 }
 
 interface WindowSpec {
-    partitionBy?: (row: RowObject) => any;
-    orderBy?: (rowA: RowObject, rowB: RowObject) => number;
-    framing?: [unit:"rows"|"range",start:string|number,end:string|number];
+    partitionBy?: string|((row: RowObject) => any);
+    orderBy?: string|((rowA: RowObject, rowB: RowObject) => number);
+    framing?: [unit:"ROWS"|"RANGE",start:string|number,end:string|number];
 }
