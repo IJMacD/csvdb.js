@@ -1,17 +1,20 @@
 {
   "name": "@ijmacd/csvdb-js",
   "main": "./dist/csvdb.js",
-  "version": "0.0.3",
+  "version": "1.0.0",
   "type": "module",
+  "license": "UNLICENSED",
   "scripts": {
     "build": "rimraf dist && tsc && copyfiles -u 1 src/**/*.d.ts dist",
-    "deploy": "yarn build && copyfiles -u 1 public/* dist && gh-pages -d dist",
-    "prepare": "yarn build"
+    "deploy": "yarn build && yarn docs && copyfiles -u 1 public/* dist && copyfiles docs/**/* dist && gh-pages -d dist",
+    "prepare": "yarn build",
+    "docs": "typedoc src/csvdb.ts"
   },
   "devDependencies": {
     "copyfiles": "^2.4.1",
     "gh-pages": "^5.0.0",
     "rimraf": "^6.0.1",
+    "typedoc": "^0.26.10",
     "typescript": "^5.6.3"
   },
   "files": [
