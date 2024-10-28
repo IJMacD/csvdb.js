@@ -10,7 +10,7 @@ export { RowObject, SelectFunction, SelectObject, WindowSpec, ColumnSpec };
 
 export class CSVDB {
   #headers: string[];
-  #rows: StringRowObject[];
+  #rawLines: string[];
 
   /**
    * Returns the number of rows in the csv file
@@ -24,7 +24,7 @@ export class CSVDB {
    * ```
    */
   get rowCount() {
-    return this.#rows.length;
+    return this.#rawLines.length;
   }
 
   /**
@@ -56,9 +56,7 @@ export class CSVDB {
 
     this.#headers = parseCSVLine(headerLine);
 
-    const rows = restLines.map(parseCSVLine);
-
-    this.#rows = rows.map((row) => zip(this.#headers, row));
+    this.#rawLines = restLines;
   }
 
   /**
@@ -75,8 +73,15 @@ export class CSVDB {
    * {a: "4", b: "5", c: "6"}
    * ```
    */
-  [Symbol.iterator]() {
-    return this.query()[Symbol.iterator]();
+  [Symbol.iterator](): Iterator<RowObject> {
+    return this.#iter();
+  }
+
+  *#iter(): Generator<RowObject> {
+    for (const line of this.#rawLines) {
+      const parsed = parseCSVLine(line);
+      yield zip(this.#headers, parsed);
+    }
   }
 
   /**
@@ -98,7 +103,7 @@ export class CSVDB {
    * ```
    */
   query() {
-    return new CSVDBQuery(this.#rows);
+    return new CSVDBQuery(this);
   }
 
   /**
@@ -872,7 +877,7 @@ export class CSVDBQuery {
 
     // GROUP BY
     let rowGroups: RowObject[][] | Iterable<RowObject> = rows;
-    let allRowGroup: RowObject[] | undefined = undefined;
+    let allRowGroup: RowObject[] | undefined;
 
     const haveWindowFunctions =
       this.#windowSpecs.size > 0 ||
@@ -932,16 +937,20 @@ export class CSVDBQuery {
       }
 
       // OFFSET
+      // We've done all the work (we had to wait until after `distinct()`) but
+      // we'll only actually yield the result if we've passed the offset
+      // threshold.
       if (i >= this.#offset) {
-        // FETCH FIRST
-        if (i - this.#offset >= this.#limit) {
-          return;
-        }
-
         yield result;
       }
 
       i++;
+
+      // FETCH FIRST
+      // Decide whether or not to continue onto next iteration
+      if (i - this.#offset >= this.#limit) {
+        return;
+      }
     }
   }
 
