@@ -304,7 +304,7 @@ export class CSVDBQuery {
    * └─────────┴─────┴─────┴─────┴───┘
    * ```
    */
-  join(joinSpec: (row: RowObject | null) => RowObject[]) {
+  join(joinSpec: (row: RowObject | null) => RowObject[] | null) {
     this.#join.push(joinSpec);
     return this;
   }
@@ -734,7 +734,7 @@ export class CSVDBQuery {
    *
    * @example
    * ```
-   * const db = new CSVDB("a,b,c\n,1,2,3\n1,2,4\n1,2,3");
+   * const db = new CSVDB("a,b,c\n1,2,3\n1,2,4\n1,2,3");
    * const query = db.query().distinct();
    *
    * console.log(query.toArray());

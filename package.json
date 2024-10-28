@@ -8,11 +8,14 @@
     "build": "rimraf dist && tsc && copyfiles -u 1 src/**/*.d.ts dist",
     "deploy": "yarn build && yarn docs && copyfiles -u 1 public/* dist && copyfiles docs/**/* dist && gh-pages -d dist",
     "prepare": "yarn build",
-    "docs": "typedoc src/csvdb.ts"
+    "docs": "typedoc src/csvdb.ts",
+    "test": "node --experimental-vm-modules ./node_modules/jest/bin/jest"
   },
   "devDependencies": {
+    "@types/jest": "^29.5.14",
     "copyfiles": "^2.4.1",
     "gh-pages": "^5.0.0",
+    "jest": "^29.7.0",
     "rimraf": "^6.0.1",
     "typedoc": "^0.26.10",
     "typescript": "^5.6.3"
