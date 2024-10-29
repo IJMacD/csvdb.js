@@ -11,6 +11,7 @@ export { RowObject, SelectFunction, SelectObject, WindowSpec, ColumnSpec };
 export class CSVDB {
   #headers: string[];
   #rawLines: string[];
+  #parsedRows: RowObject[] = [];
 
   /**
    * Returns the number of rows in the csv file
@@ -78,9 +79,18 @@ export class CSVDB {
   }
 
   *#iter(): Generator<RowObject> {
-    for (const line of this.#rawLines) {
+    // It's important to keep object identity over multiple calls to #iter()
+
+    for (const row of this.#parsedRows) {
+      yield row;
+    }
+
+    for (let i = this.#parsedRows.length; i < this.rowCount; i++) {
+      const line = this.#rawLines[i];
       const parsed = parseCSVLine(line);
-      yield zip(this.#headers, parsed);
+      const row = zip(this.#headers, parsed);
+      this.#parsedRows.push(row);
+      yield row;
     }
   }
 
