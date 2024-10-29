@@ -1,7 +1,7 @@
 {
   "name": "@ijmacd/csvdb-js",
   "main": "./dist/csvdb.js",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "type": "module",
   "license": "UNLICENSED",
   "scripts": {
