@@ -632,21 +632,7 @@ export class CSVDBQuery {
    * ```
    */
   orderBy(comparator: ((rowA: RowObject, rowB: RowObject) => number) | string) {
-    if (typeof comparator === "string") {
-      const c = comparator;
-
-      if (c[0] === "-") {
-        const f = comparator.substring(1);
-        this.#sort = (rowA, rowB) => +rowB[f] - +rowA[f];
-      } else if (c[0] === "+") {
-        const f = comparator.substring(1);
-        this.#sort = (rowA, rowB) => +rowA[f] - +rowB[f];
-      } else {
-        this.#sort = (rowA, rowB) => String(rowA[c]).localeCompare(rowB[c]);
-      }
-    } else {
-      this.#sort = comparator;
-    }
+    this.#sort = getOrderBy(comparator);
 
     return this;
   }
@@ -1071,11 +1057,12 @@ export class CSVDBQuery {
           let values = rows.map((row) => row[args[0]]);
           value = AGGREGATE_FUNCTIONS[fnName](values);
         } else if (fnName in WINDOW_FUNCTIONS && windowSpec) {
-          orderByCheck(windowSpec, fnName);
-
+          if (!windowSpec.orderBy)
+            throw Error("windowSpec.orderBy is required");
           value = WINDOW_FUNCTIONS[fnName](sourceRow, rows, args, windowSpec);
         } else if (fnName in POSITION_FUNCTIONS && windowSpec) {
-          orderByCheck(windowSpec, fnName);
+          if (!windowSpec.orderBy)
+            throw Error("windowSpec.orderBy is required");
           let values = rows.map((row) => row[args[0]]);
 
           value = POSITION_FUNCTIONS[fnName](sourceRow, rows, args, values);
@@ -1127,7 +1114,7 @@ function applyWindow(
   }
 
   if (windowSpec.orderBy) {
-    const orderBy = getOrderBy(windowSpec);
+    const orderBy = getOrderBy(windowSpec.orderBy);
 
     rows = [...rows].sort(orderBy);
 
@@ -1171,24 +1158,25 @@ function applyWindow(
 }
 
 function getOrderBy(
-  windowSpec: WindowSpec
+  comparator: ((rowA: RowObject, rowB: RowObject) => number) | string
 ): (rowA: RowObject, rowB: RowObject) => number {
-  if (typeof windowSpec.orderBy === "string") {
-    let k = windowSpec.orderBy;
-    if (k[0] === "+") {
-      k = k.substring(1);
-      return (rowA, rowB) => +rowA[k] - +rowB[k];
+  if (typeof comparator === "string") {
+    const c = comparator;
+
+    if (c[0] === "-") {
+      const f = comparator.substring(1);
+      return (rowA, rowB) => +rowB[f] - +rowA[f];
     }
 
-    return (rowA, rowB) => rowA[k].localeCompare(rowB[k]);
+    if (c[0] === "+") {
+      const f = comparator.substring(1);
+      return (rowA, rowB) => +rowA[f] - +rowB[f];
+    }
+
+    return (rowA, rowB) => String(rowA[c]).localeCompare(rowB[c]);
   }
 
-  // @ts-ignore
-  return windowSpec.orderBy;
-}
-
-function orderByCheck(windowSpec: WindowSpec, fnName: string) {
-  if (!windowSpec?.orderBy) throw Error(`ORDER BY required: ${fnName}`);
+  return comparator;
 }
 
 function zip<T>(keys: string[], values: T[]) {
@@ -1302,20 +1290,25 @@ function* unionAll(
   }
 }
 
-const SUM: (value: any[]) => number = (values) =>
-  values.reduce((total: number, v) => total + +v, 0);
+const SUM: (value: any[]) => number | null = (values) =>
+  values.length === 0
+    ? null
+    : values.reduce((total: number, v) => total + +v, 0);
 
 const AGGREGATE_FUNCTIONS: { [name: string]: (value: any[]) => any } = {
   SUM,
-  AVG: (values) => SUM(values) / values.length,
+  AVG: (values) => {
+    const s = SUM(values);
+    return s === null ? null : s / values.length;
+  },
   MAX: (values) => Math.max(...values),
   MIN: (values) => Math.min(...values),
   COUNT: (values) => values.length,
-  LISTAGG: (values) => values.join(),
+  LISTAGG: (values) => (values.length === 0 ? null : values.join()),
   ARRAY: (values) => values,
   JSON: (values) => JSON.stringify(values),
-  ANY: (values) => values[0],
-  RANDOM: (values) => values[Math.floor(Math.random() * values.length)],
+  ANY: (values) => values[0] || null,
+  RANDOM: (values) => values[Math.floor(Math.random() * values.length)] || null,
 };
 
 const WINDOW_FUNCTIONS: {
@@ -1327,7 +1320,8 @@ const WINDOW_FUNCTIONS: {
   ) => any;
 } = {
   RANK: (sourceRow, rows, args, windowSpec) => {
-    const orderBy = getOrderBy(windowSpec);
+    if (!windowSpec.orderBy) throw Error("windowSpec.orderBy is required");
+    const orderBy = getOrderBy(windowSpec.orderBy);
 
     const index = rows.indexOf(sourceRow);
     let i = index;
@@ -1339,7 +1333,8 @@ const WINDOW_FUNCTIONS: {
     return i + 2;
   },
   DENSE_RANK: (sourceRow, rows, args, windowSpec) => {
-    const orderBy = getOrderBy(windowSpec);
+    if (!windowSpec.orderBy) throw Error("windowSpec.orderBy is required");
+    const orderBy = getOrderBy(windowSpec.orderBy);
 
     const index = rows.indexOf(sourceRow);
     let count = 0;
@@ -1359,7 +1354,8 @@ const WINDOW_FUNCTIONS: {
       return 0;
     }
 
-    const orderBy = getOrderBy(windowSpec);
+    if (!windowSpec.orderBy) throw Error("windowSpec.orderBy is required");
+    const orderBy = getOrderBy(windowSpec.orderBy);
 
     const index = rows.indexOf(sourceRow);
     let i = index;
@@ -1372,7 +1368,8 @@ const WINDOW_FUNCTIONS: {
     return (i + 1) / (rows.length - 1);
   },
   CUME_DIST: (sourceRow, rows, args, windowSpec) => {
-    const orderBy = getOrderBy(windowSpec);
+    if (!windowSpec.orderBy) throw Error("windowSpec.orderBy is required");
+    const orderBy = getOrderBy(windowSpec.orderBy);
 
     const index = rows.indexOf(sourceRow);
     let i = index + 1;
@@ -1417,7 +1414,7 @@ function findPercentile(
   }
 
   let k = windowSpec.orderBy;
-  if (k[0] === "+") {
+  if (k[0] === "+" || k[0] === "-") {
     k = k.substring(1);
   }
 
@@ -1475,15 +1472,30 @@ const POSITION_FUNCTIONS: {
 
 const VARIANCE_SUM = (values: string[]) => {
   const n = values.length;
-  const mean = SUM(values) / n;
+  const s = SUM(values);
+  if (n === 0 || s === null) {
+    return null;
+  }
+  const mean = s / n;
   const sum = values.reduce((total, v) => total + Math.pow(+v - mean, 2), 0);
   return Math.sqrt(sum / n);
 };
 
 const STAT_FUNCTIONS: { [name: string]: (value: any[]) => any } = {
-  STDDEV_POP: (values) => Math.sqrt(VARIANCE_SUM(values) / values.length),
-  STDDEV_SAMP: (values) =>
-    Math.sqrt(VARIANCE_SUM(values) / (values.length - 1)),
-  VAR_POP: (values) => VARIANCE_SUM(values) / values.length,
-  VAR_SAMP: (values) => VARIANCE_SUM(values) / (values.length - 1),
+  STDDEV_POP: (values) => {
+    const s = VARIANCE_SUM(values);
+    return s === null ? null : Math.sqrt(s / values.length);
+  },
+  STDDEV_SAMP: (values) => {
+    const s = VARIANCE_SUM(values);
+    return s === null ? null : Math.sqrt(s / (values.length - 1));
+  },
+  VAR_POP: (values) => {
+    const s = VARIANCE_SUM(values);
+    return s === null ? null : s / values.length;
+  },
+  VAR_SAMP: (values) => {
+    const s = VARIANCE_SUM(values);
+    return s === null ? null : s / (values.length - 1);
+  },
 };

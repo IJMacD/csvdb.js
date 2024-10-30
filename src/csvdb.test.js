@@ -478,474 +478,784 @@ describe("CSVDBQuery", () => {
       ]);
     });
   });
+});
 
-  describe("SQL Functions", () => {
-    describe("Aggregate Functions", () => {
-      describe("COUNT(*)", () => {
-        it("counts 0 rows", () => {
-          const db = new CSVDB("a,b,c");
+describe("SQL Functions", () => {
+  describe("Aggregate Functions", () => {
+    describe("COUNT(*)", () => {
+      it("counts 0 rows", () => {
+        const db = new CSVDB("a,b,c");
 
-          const query = db.query().select(["COUNT(*)"]);
+        const query = db.query().select(["COUNT(*)"]);
 
-          expect(query.getNextValue()).toBe(0);
-        });
-
-        it("counts 1 row", () => {
-          const db = new CSVDB("a,b,c\n1,2,3");
-
-          const query = db.query().select(["COUNT(*)"]);
-
-          expect(query.getNextValue()).toBe(1);
-        });
-
-        it("counts 3 rows", () => {
-          const db = new CSVDB("a,b,c\n1,2,3\n4,5,6\n7,8,9");
-
-          const query = db.query().select(["COUNT(*)"]);
-
-          expect(query.getNextValue()).toBe(3);
-        });
-
-        it("counts 10 rows", () => {
-          const db = new CSVDB("a\n1\n2\n3\n4\n5\n6\n7\n8\n9\n10");
-
-          const query = db.query().select(["COUNT(*)"]);
-
-          expect(query.getNextValue()).toBe(10);
-        });
+        expect(query.getNextValue()).toBe(0);
       });
 
-      describe("MIN(a)", () => {
-        it("finds the minimum of 3 rows", () => {
-          const db = new CSVDB("a,b,c\n4,5,6\n1,2,3\n7,8,9");
+      it("counts 1 row", () => {
+        const db = new CSVDB("a,b,c\n1,2,3");
 
-          const query = db.query().select(["MIN(a)"]);
+        const query = db.query().select(["COUNT(*)"]);
 
-          expect(query.getNextValue()).toBe(1);
-        });
+        expect(query.getNextValue()).toBe(1);
       });
 
-      describe("MAX(a)", () => {
-        it("finds the maximum of 3 rows", () => {
-          const db = new CSVDB("a,b,c\n4,5,6\n1,2,3\n7,8,9");
+      it("counts 3 rows", () => {
+        const db = new CSVDB("a,b,c\n1,2,3\n4,5,6\n7,8,9");
 
-          const query = db.query().select(["MAX(a)"]);
+        const query = db.query().select(["COUNT(*)"]);
 
-          expect(query.getNextValue()).toBe(7);
-        });
+        expect(query.getNextValue()).toBe(3);
       });
 
-      describe("SUM(a)", () => {
-        it("sums 3 rows", () => {
-          const db = new CSVDB("a,b,c\n4,5,6\n1,2,3\n7,8,9");
+      it("counts 10 rows", () => {
+        const db = new CSVDB("a\n1\n2\n3\n4\n5\n6\n7\n8\n9\n10");
 
-          const query = db.query().select(["SUM(a)"]);
+        const query = db.query().select(["COUNT(*)"]);
 
-          expect(query.getNextValue()).toBe(12);
-        });
-      });
-
-      describe("AVG(a)", () => {
-        it("finds the average of 3 rows", () => {
-          const db = new CSVDB("a,b,c\n4,5,6\n1,2,3\n7,8,9");
-
-          const query = db.query().select(["AVG(a)"]);
-
-          expect(query.getNextValue()).toBe(4);
-        });
-      });
-
-      describe("LISTAGG(a)", () => {
-        it("lists the values of 3 rows", () => {
-          const db = new CSVDB("a,b,c\n4,5,6\n1,2,3\n7,8,9");
-
-          const query = db.query().select(["LISTAGG(a)"]);
-
-          expect(query.getNextValue()).toBe("4,1,7");
-        });
-      });
-
-      describe("JSON(a)", () => {
-        it("creates a JSON array from 3 rows", () => {
-          const db = new CSVDB("a,b,c\n4,5,6\n1,2,3\n7,8,9");
-
-          const query = db.query().select(["JSON(a)"]);
-
-          expect(query.getNextValue()).toBe(`["4","1","7"]`);
-        });
-      });
-
-      describe("ARRAY(a)", () => {
-        it("creates an array from 3 rows", () => {
-          const db = new CSVDB("a,b,c\n4,5,6\n1,2,3\n7,8,9");
-
-          const query = db.query().select(["ARRAY(a)"]);
-
-          expect(query.getNextValue()).toEqual(["4", "1", "7"]);
-        });
-      });
-
-      describe("ANY(a)", () => {
-        it("picks a value from 1 of 3 rows", () => {
-          const db = new CSVDB("a,b,c\n4,5,6\n1,2,3\n7,8,9");
-
-          const query = db.query().select(["ANY(a)"]);
-
-          expect(query.getNextValue()).toBe("4");
-        });
-      });
-
-      describe("RANDOM(a)", () => {
-        it("picks a random value 1 of 3 rows", () => {
-          const db = new CSVDB("a,b,c\n4,5,6\n1,2,3\n7,8,9");
-
-          const query = db.query().select(["RANDOM(a)"]);
-
-          expect(["4", "1", "7"].includes(query.getNextValue())).toBe(true);
-        });
+        expect(query.getNextValue()).toBe(10);
       });
     });
 
-    describe("Ranking Functions", () => {
-      it("ROW_NUMBER()", () => {
-        const db = new CSVDB("a,b,c\n1,2,3\n2,4,8\n1,4,7\n4,5,6");
-        const results = db
-          .query()
-          .window("win1", {
-            orderBy: "+b",
-            framing: ["ROWS", "UNBOUNDED PRECEDING", "UNBOUNDED FOLLOWING"],
-          })
-          .select({
-            rowNumber: "ROW_NUMBER() OVER win1",
-          });
+    describe("MIN(a)", () => {
+      it("finds the minimum of 1 row", () => {
+        const db = new CSVDB("a,b,c\n4,5,6");
 
-        expect(results.getNextValue()).toBe(1);
-        expect(results.getNextValue()).toBe(2);
-        expect(results.getNextValue()).toBe(3);
-        expect(results.getNextValue()).toBe(4);
+        const query = db.query().select(["MIN(a)"]);
+
+        expect(query.getNextValue()).toBe(4);
       });
 
-      it("RANK()", () => {
-        const db = new CSVDB("a,b,c\n1,2,3\n2,4,8\n1,4,7\n4,5,6");
-        const results = db
-          .query()
-          .window("win1", {
-            orderBy: "+b",
-            framing: ["ROWS", "UNBOUNDED PRECEDING", "UNBOUNDED FOLLOWING"],
-          })
-          .select({
-            rank: "RANK() OVER win1",
-          });
+      it("finds the minimum of 3 rows", () => {
+        const db = new CSVDB("a,b,c\n4,5,6\n1,2,3\n7,8,9");
 
-        expect(results.getNextValue()).toBe(1);
-        expect(results.getNextValue()).toBe(2);
-        expect(results.getNextValue()).toBe(2);
-        expect(results.getNextValue()).toBe(4);
+        const query = db.query().select(["MIN(a)"]);
+
+        expect(query.getNextValue()).toBe(1);
       });
 
-      it("DENSE_RANK()", () => {
-        const db = new CSVDB("a,b,c\n1,2,3\n2,4,8\n1,4,7\n4,5,6");
-        const results = db
-          .query()
-          .window("win1", {
-            orderBy: "+b",
-            framing: ["ROWS", "UNBOUNDED PRECEDING", "UNBOUNDED FOLLOWING"],
-          })
-          .select({
-            denseRank: "DENSE_RANK() OVER win1",
-          });
-        expect(results.getNextValue()).toBe(1);
-        expect(results.getNextValue()).toBe(2);
-        expect(results.getNextValue()).toBe(2);
-        expect(results.getNextValue()).toBe(3);
+      it("finds the minimum of 3 rows with negatives", () => {
+        const db = new CSVDB("a,b,c\n4,5,6\n-1,2,3\n-7,8,9");
+
+        const query = db.query().select(["MIN(a)"]);
+
+        expect(query.getNextValue()).toBe(-7);
       });
 
-      it("NTILE(2)", () => {
-        const db = new CSVDB("a,b,c\n1,2,3\n2,4,8\n1,4,7\n4,5,6");
-        const results = db
-          .query()
-          .window("win1", {
-            orderBy: "+b",
-            framing: ["ROWS", "UNBOUNDED PRECEDING", "UNBOUNDED FOLLOWING"],
-          })
-          .select({
-            ntile: "NTILE(2) OVER win1",
-          });
-        expect(results.getNextValue()).toBe(1);
-        expect(results.getNextValue()).toBe(1);
-        expect(results.getNextValue()).toBe(2);
-        expect(results.getNextValue()).toBe(2);
-      });
+      it("the minimum of 0 rows is infinity", () => {
+        const db = new CSVDB("a,b,c");
 
-      it("PERCENT_RANK()", () => {
-        const db = new CSVDB("a,b,c\n1,2,3\n2,4,8\n1,4,7\n4,5,6");
-        const results = db
-          .query()
-          .window("win1", {
-            orderBy: "+b",
-            framing: ["ROWS", "UNBOUNDED PRECEDING", "UNBOUNDED FOLLOWING"],
-          })
-          .select({
-            percentRank: "PERCENT_RANK() OVER win1",
-          });
-        expect(results.getNextValue()).toBe(0);
-        expect(results.getNextValue()).toBeCloseTo(1 / 3);
-        expect(results.getNextValue()).toBeCloseTo(1 / 3);
-        expect(results.getNextValue()).toBe(1);
-      });
+        const query = db.query().select(["MIN(a)"]);
 
-      it("CUME_DIST()", () => {
-        const db = new CSVDB("a,b,c\n1,2,3\n2,4,8\n1,4,7\n4,5,6");
-        const results = db
-          .query()
-          .window("win1", {
-            orderBy: "+b",
-            framing: ["ROWS", "UNBOUNDED PRECEDING", "UNBOUNDED FOLLOWING"],
-          })
-          .select({
-            cumeDist: "CUME_DIST() OVER win1",
-          });
-        expect(results.getNextValue()).toBe(0.25);
-        expect(results.getNextValue()).toBe(0.75);
-        expect(results.getNextValue()).toBe(0.75);
-        expect(results.getNextValue()).toBe(1);
-      });
-
-      it("PERCENTILE_DIST(0.5)", () => {
-        const db = new CSVDB("a,b,c\n1,2,3\n2,4,8\n1,4,7\n4,5,6");
-        const results = db
-          .query()
-          .window("win1", {
-            orderBy: "+b",
-            framing: ["ROWS", "UNBOUNDED PRECEDING", "UNBOUNDED FOLLOWING"],
-          })
-          .select({
-            median: "PERCENTILE_DIST(0.5) OVER win1",
-          });
-        expect(results.getNextValue()).toBe("4");
-        expect(results.getNextValue()).toBe("4");
-        expect(results.getNextValue()).toBe("4");
-        expect(results.getNextValue()).toBe("4");
-      });
-
-      it("PERCENTILE_CONT(0.5)", () => {
-        const db = new CSVDB("a,b,c\n1,2,3\n2,4,8\n1,4,7\n4,5,6");
-        const results = db
-          .query()
-          .window("win1", {
-            orderBy: "+b",
-            framing: ["ROWS", "UNBOUNDED PRECEDING", "UNBOUNDED FOLLOWING"],
-          })
-          .select({
-            medianCont: "PERCENTILE_CONT(0.5) OVER win1",
-          });
-        expect(results.getNextValue()).toBe(3);
-        expect(results.getNextValue()).toBe(3);
-        expect(results.getNextValue()).toBe(3);
-        expect(results.getNextValue()).toBe(3);
+        expect(query.getNextValue()).toBe(Infinity);
       });
     });
 
-    describe("Position Functions", () => {
-      it("LAG(b)", () => {
-        const db = new CSVDB("a,b,c\n1,2,3\n1,3,5\n1,4,7\n4,5,6");
-        const results = db
-          .query()
-          .window("win1", {
-            orderBy: "b",
-            framing: ["ROWS", "UNBOUNDED PRECEDING", "UNBOUNDED FOLLOWING"],
-          })
-          .select({
-            rowNumber: "LAG(b) OVER win1",
-          });
+    describe("MAX(a)", () => {
+      it("finds the maximum of 1 row", () => {
+        const db = new CSVDB("a,b,c\n4,5,6");
 
-        expect(results.getNextValue()).toBeNull();
-        expect(results.getNextValue()).toBe("2");
-        expect(results.getNextValue()).toBe("3");
-        expect(results.getNextValue()).toBe("4");
+        const query = db.query().select(["MAX(a)"]);
+
+        expect(query.getNextValue()).toBe(4);
       });
 
-      it("LEAD(c, 2)", () => {
-        const db = new CSVDB("a,b,c\n1,2,3\n1,3,5\n1,4,7\n4,5,6");
-        const results = db
-          .query()
-          .window("win1", {
-            orderBy: "b",
-            framing: ["ROWS", "UNBOUNDED PRECEDING", "UNBOUNDED FOLLOWING"],
-          })
-          .select({
-            rowNumber: "LEAD(c, 2) OVER win1",
-          });
+      it("finds the maximum of 3 rows", () => {
+        const db = new CSVDB("a,b,c\n4,5,6\n1,2,3\n7,8,9");
 
-        expect(results.getNextValue()).toBe("7");
-        expect(results.getNextValue()).toBe("6");
-        expect(results.getNextValue()).toBeNull();
-        expect(results.getNextValue()).toBeNull();
+        const query = db.query().select(["MAX(a)"]);
+
+        expect(query.getNextValue()).toBe(7);
       });
 
-      it("FIRST_VALUE(b)", () => {
-        const db = new CSVDB("a,b,c\n1,2,3\n1,3,5\n1,4,7\n4,5,6");
-        const results = db
-          .query()
-          .window("win1", {
-            partitionBy: "a",
-            orderBy: "b",
-            framing: ["ROWS", "UNBOUNDED PRECEDING", "UNBOUNDED FOLLOWING"],
-          })
-          .select({
-            rowNumber: "FIRST_VALUE(b) OVER win1",
-          });
+      it("finds the maximum of 3 rows with negatives", () => {
+        const db = new CSVDB("a,b,c\n4,5,6\n-1,2,3\n-7,8,9");
 
-        expect(results.getNextValue()).toBe("2");
-        expect(results.getNextValue()).toBe("2");
-        expect(results.getNextValue()).toBe("2");
-        expect(results.getNextValue()).toBe("5");
+        const query = db.query().select(["MAX(a)"]);
+
+        expect(query.getNextValue()).toBe(4);
       });
 
-      it("LAST_VALUE(c)", () => {
-        const db = new CSVDB("a,b,c\n1,2,3\n1,3,5\n1,4,7\n4,5,6");
-        const results = db
-          .query()
-          .window("win1", {
-            partitionBy: "a",
-            orderBy: "b",
-            framing: ["ROWS", "UNBOUNDED PRECEDING", "UNBOUNDED FOLLOWING"],
-          })
-          .select({
-            rowNumber: "LAST_VALUE(c) OVER win1",
-          });
+      it("the maximum of 0 rows is negative infinity", () => {
+        const db = new CSVDB("a,b,c");
 
-        expect(results.getNextValue()).toBe("7");
-        expect(results.getNextValue()).toBe("7");
-        expect(results.getNextValue()).toBe("7");
-        expect(results.getNextValue()).toBe("6");
-      });
+        const query = db.query().select(["MAX(a)"]);
 
-      it("NTH_VALUE(c, 2)", () => {
-        const db = new CSVDB("a,b,c\n1,2,3\n1,3,5\n1,4,7\n4,5,6");
-        const results = db
-          .query()
-          .window("win1", {
-            partitionBy: "a",
-            orderBy: "b",
-            framing: ["ROWS", "UNBOUNDED PRECEDING", "UNBOUNDED FOLLOWING"],
-          })
-          .select({
-            rowNumber: "NTH_VALUE(c, 2) OVER win1",
-          });
-
-        expect(results.getNextValue()).toBe("5");
-        expect(results.getNextValue()).toBe("5");
-        expect(results.getNextValue()).toBe("5");
-        expect(results.getNextValue()).toBeNull();
+        expect(query.getNextValue()).toBe(-Infinity);
       });
     });
 
-    describe("Statistical Functions", () => {
-      it("PERCENTILE_DIST(0.25)", () => {
-        const db = new CSVDB("a,b,c\n1,2,3\n2,4,8\n1,4,7\n4,5,6");
-        const results = db
-          .query()
-          .window("win1", {
-            orderBy: "+b",
-            framing: ["ROWS", "UNBOUNDED PRECEDING", "UNBOUNDED FOLLOWING"],
-          })
-          .select({
-            rowNumber: "PERCENTILE_DIST(0.25) OVER win1",
-          });
+    describe("SUM(a)", () => {
+      it("sums 1 row", () => {
+        const db = new CSVDB("a,b,c\n4,5,6");
 
-        expect(results.getNextValue()).toBe("2");
+        const query = db.query().select(["SUM(a)"]);
+
+        expect(query.getNextValue()).toBe(4);
       });
 
-      it("PERCENTILE_DIST(0.5)", () => {
-        const db = new CSVDB("a,b,c\n1,2,3\n2,4,8\n1,4,7\n4,5,6");
-        const results = db
-          .query()
-          .window("win1", {
-            orderBy: "+b",
-            framing: ["ROWS", "UNBOUNDED PRECEDING", "UNBOUNDED FOLLOWING"],
-          })
-          .select({
-            rowNumber: "PERCENTILE_DIST(0.5) OVER win1",
-          });
+      it("sums 3 rows", () => {
+        const db = new CSVDB("a,b,c\n4,5,6\n1,2,3\n7,8,9");
 
-        expect(results.getNextValue()).toBe("4");
+        const query = db.query().select(["SUM(a)"]);
+
+        expect(query.getNextValue()).toBe(12);
       });
 
-      it("PERCENTILE_DIST(0.75)", () => {
-        const db = new CSVDB("a,b,c\n1,2,3\n2,4,8\n1,4,7\n4,5,6");
-        const results = db
-          .query()
-          .window("win1", {
-            orderBy: "+b",
-            framing: ["ROWS", "UNBOUNDED PRECEDING", "UNBOUNDED FOLLOWING"],
-          })
-          .select({
-            rowNumber: "PERCENTILE_DIST(0.75) OVER win1",
-          });
+      it("sums 3 rows with negative numbers", () => {
+        const db = new CSVDB("a,b,c\n4,5,6\n-1,2,3\n-7,8,9");
 
-        expect(results.getNextValue()).toBe("4");
+        const query = db.query().select(["SUM(a)"]);
+
+        expect(query.getNextValue()).toBe(-4);
       });
 
-      it("STDDEV_POP(b)", () => {
-        const db = new CSVDB("a,b,c\n1,2,3\n2,4,8\n1,4,7\n4,5,6");
-        const results = db
-          .query()
-          .window("win1", {
-            orderBy: "+b",
-            framing: ["ROWS", "UNBOUNDED PRECEDING", "UNBOUNDED FOLLOWING"],
-          })
-          .select({
-            rowNumber: "STDDEV_POP(b) OVER win1",
-          });
+      it("sum of 0 rows is null", () => {
+        const db = new CSVDB("a,b,c");
 
-        expect(results.getNextValue()).toBeCloseTo(0.521949407482461);
+        const query = db.query().select(["SUM(a)"]);
+
+        expect(query.getNextValue()).toBeNull();
+      });
+    });
+
+    describe("AVG(a)", () => {
+      it("finds the average of 1 row", () => {
+        const db = new CSVDB("a,b,c\n4,5,6");
+
+        const query = db.query().select(["AVG(a)"]);
+
+        expect(query.getNextValue()).toBe(4);
       });
 
-      it("STDDEV_SAMP(b)", () => {
-        const db = new CSVDB("a,b,c\n1,2,3\n2,4,8\n1,4,7\n4,5,6");
-        const results = db
-          .query()
-          .window("win1", {
-            orderBy: "+b",
-            framing: ["ROWS", "UNBOUNDED PRECEDING", "UNBOUNDED FOLLOWING"],
-          })
-          .select({
-            rowNumber: "STDDEV_SAMP(b) OVER win1",
-          });
+      it("finds the average of 3 rows", () => {
+        const db = new CSVDB("a,b,c\n4,5,6\n1,2,3\n7,8,9");
 
-        expect(results.getNextValue()).toBeCloseTo(0.6026952618267291);
+        const query = db.query().select(["AVG(a)"]);
+
+        expect(query.getNextValue()).toBe(4);
       });
 
-      it("VAR_POP(b)", () => {
-        const db = new CSVDB("a,b,c\n1,2,3\n2,4,8\n1,4,7\n4,5,6");
-        const results = db
-          .query()
-          .window("win1", {
-            orderBy: "+b",
-            framing: ["ROWS", "UNBOUNDED PRECEDING", "UNBOUNDED FOLLOWING"],
-          })
-          .select({
-            rowNumber: "VAR_POP(b) OVER win1",
-          });
+      it("the average of 0 rows is null", () => {
+        const db = new CSVDB("a,b,c");
 
-        expect(results.getNextValue()).toBeCloseTo(0.2724311839712921);
+        const query = db.query().select(["AVG(a)"]);
+
+        expect(query.getNextValue()).toBeNull();
+      });
+    });
+
+    describe("LISTAGG(a)", () => {
+      it("lists the values of 3 rows", () => {
+        const db = new CSVDB("a,b,c\n4,5,6\n1,2,3\n7,8,9");
+
+        const query = db.query().select(["LISTAGG(a)"]);
+
+        expect(query.getNextValue()).toBe("4,1,7");
       });
 
-      it("VAR_SAMP(b)", () => {
-        const db = new CSVDB("a,b,c\n1,2,3\n2,4,8\n1,4,7\n4,5,6");
-        const results = db
-          .query()
-          .window("win1", {
-            orderBy: "+b",
-            framing: ["ROWS", "UNBOUNDED PRECEDING", "UNBOUNDED FOLLOWING"],
-          })
-          .select({
-            rowNumber: "VAR_SAMP(b) OVER win1",
-          });
+      it("list of 0 rows is null", () => {
+        const db = new CSVDB("a,b,c");
 
-        expect(results.getNextValue()).toBeCloseTo(0.3632415786283895);
+        const query = db.query().select(["LISTAGG(a)"]);
+
+        expect(query.getNextValue()).toBeNull();
       });
+    });
+
+    describe("JSON(a)", () => {
+      it("creates a JSON array from 3 rows", () => {
+        const db = new CSVDB("a,b,c\n4,5,6\n1,2,3\n7,8,9");
+
+        const query = db.query().select(["JSON(a)"]);
+
+        expect(query.getNextValue()).toBe(`["4","1","7"]`);
+      });
+
+      it("creates a JSON array from 0 rows", () => {
+        const db = new CSVDB("a,b,c");
+
+        const query = db.query().select(["JSON(a)"]);
+
+        expect(query.getNextValue()).toBe(`[]`);
+      });
+    });
+
+    describe("ARRAY(a)", () => {
+      it("creates an array from 3 rows", () => {
+        const db = new CSVDB("a,b,c\n4,5,6\n1,2,3\n7,8,9");
+
+        const query = db.query().select(["ARRAY(a)"]);
+
+        expect(query.getNextValue()).toEqual(["4", "1", "7"]);
+      });
+
+      it("creates an array from 0 rows", () => {
+        const db = new CSVDB("a,b,c");
+
+        const query = db.query().select(["ARRAY(a)"]);
+
+        expect(query.getNextValue()).toEqual([]);
+      });
+    });
+
+    describe("ANY(a)", () => {
+      it("picks a value from 1 of 3 rows", () => {
+        const db = new CSVDB("a,b,c\n4,5,6\n1,2,3\n7,8,9");
+
+        const query = db.query().select(["ANY(a)"]);
+
+        expect(query.getNextValue()).toBe("4");
+      });
+
+      it("any from 0 rows is null", () => {
+        const db = new CSVDB("a,b,c");
+
+        const query = db.query().select(["ANY(a)"]);
+
+        expect(query.getNextValue()).toBeNull();
+      });
+    });
+
+    describe("RANDOM(a)", () => {
+      it("picks a random value 1 of 3 rows", () => {
+        const db = new CSVDB("a,b,c\n4,5,6\n1,2,3\n7,8,9");
+
+        const query = db.query().select(["RANDOM(a)"]);
+
+        expect(["4", "1", "7"].includes(query.getNextValue())).toBe(true);
+      });
+
+      it("random value from 0 rows is null", () => {
+        const db = new CSVDB("a,b,c");
+
+        const query = db.query().select(["RANDOM(a)"]);
+
+        expect(query.getNextValue()).toBeNull();
+      });
+    });
+  });
+
+  describe("Ranking Functions", () => {
+    it("ROW_NUMBER()", () => {
+      const db = new CSVDB("a,b,c\n1,2,3\n2,4,8\n1,4,7\n4,5,6");
+      const results = db
+        .query()
+        .window("win1", {
+          orderBy: "+b",
+          framing: ["ROWS", "UNBOUNDED PRECEDING", "UNBOUNDED FOLLOWING"],
+        })
+        .select({
+          rowNumber: "ROW_NUMBER() OVER win1",
+        });
+
+      expect(results.getNextValue()).toBe(1);
+      expect(results.getNextValue()).toBe(2);
+      expect(results.getNextValue()).toBe(3);
+      expect(results.getNextValue()).toBe(4);
+    });
+
+    it("RANK()", () => {
+      const db = new CSVDB("a,b,c\n1,2,3\n2,4,8\n1,4,7\n4,5,6");
+      const results = db
+        .query()
+        .window("win1", {
+          orderBy: "+b",
+          framing: ["ROWS", "UNBOUNDED PRECEDING", "UNBOUNDED FOLLOWING"],
+        })
+        .select({
+          rank: "RANK() OVER win1",
+        });
+
+      expect(results.getNextValue()).toBe(1);
+      expect(results.getNextValue()).toBe(2);
+      expect(results.getNextValue()).toBe(2);
+      expect(results.getNextValue()).toBe(4);
+    });
+
+    it("DENSE_RANK()", () => {
+      const db = new CSVDB("a,b,c\n1,2,3\n2,4,8\n1,4,7\n4,5,6");
+      const results = db
+        .query()
+        .window("win1", {
+          orderBy: "+b",
+          framing: ["ROWS", "UNBOUNDED PRECEDING", "UNBOUNDED FOLLOWING"],
+        })
+        .select({
+          denseRank: "DENSE_RANK() OVER win1",
+        });
+      expect(results.getNextValue()).toBe(1);
+      expect(results.getNextValue()).toBe(2);
+      expect(results.getNextValue()).toBe(2);
+      expect(results.getNextValue()).toBe(3);
+    });
+
+    it("NTILE(2)", () => {
+      const db = new CSVDB("a,b,c\n1,2,3\n2,4,8\n1,4,7\n4,5,6");
+      const results = db
+        .query()
+        .window("win1", {
+          orderBy: "+b",
+          framing: ["ROWS", "UNBOUNDED PRECEDING", "UNBOUNDED FOLLOWING"],
+        })
+        .select({
+          ntile: "NTILE(2) OVER win1",
+        });
+      expect(results.getNextValue()).toBe(1);
+      expect(results.getNextValue()).toBe(1);
+      expect(results.getNextValue()).toBe(2);
+      expect(results.getNextValue()).toBe(2);
+    });
+
+    it("PERCENT_RANK()", () => {
+      const db = new CSVDB("a,b,c\n1,2,3\n2,4,8\n1,4,7\n4,5,6");
+      const results = db
+        .query()
+        .window("win1", {
+          orderBy: "+b",
+          framing: ["ROWS", "UNBOUNDED PRECEDING", "UNBOUNDED FOLLOWING"],
+        })
+        .select({
+          percentRank: "PERCENT_RANK() OVER win1",
+        });
+      expect(results.getNextValue()).toBe(0);
+      expect(results.getNextValue()).toBeCloseTo(1 / 3);
+      expect(results.getNextValue()).toBeCloseTo(1 / 3);
+      expect(results.getNextValue()).toBe(1);
+    });
+
+    it("CUME_DIST()", () => {
+      const db = new CSVDB("a,b,c\n1,2,3\n2,4,8\n1,4,7\n4,5,6");
+      const results = db
+        .query()
+        .window("win1", {
+          orderBy: "+b",
+          framing: ["ROWS", "UNBOUNDED PRECEDING", "UNBOUNDED FOLLOWING"],
+        })
+        .select({
+          cumeDist: "CUME_DIST() OVER win1",
+        });
+      expect(results.getNextValue()).toBe(0.25);
+      expect(results.getNextValue()).toBe(0.75);
+      expect(results.getNextValue()).toBe(0.75);
+      expect(results.getNextValue()).toBe(1);
+    });
+
+    it("PERCENTILE_DIST(0.5)", () => {
+      const db = new CSVDB("a,b,c\n1,2,3\n2,4,8\n1,4,7\n4,5,6");
+      const results = db
+        .query()
+        .window("win1", {
+          orderBy: "+b",
+          framing: ["ROWS", "UNBOUNDED PRECEDING", "UNBOUNDED FOLLOWING"],
+        })
+        .select({
+          median: "PERCENTILE_DIST(0.5) OVER win1",
+        });
+      expect(results.getNextValue()).toBe("4");
+      expect(results.getNextValue()).toBe("4");
+      expect(results.getNextValue()).toBe("4");
+      expect(results.getNextValue()).toBe("4");
+    });
+
+    it("PERCENTILE_CONT(0.5)", () => {
+      const db = new CSVDB("a,b,c\n1,2,3\n2,4,8\n1,4,7\n4,5,6");
+      const results = db
+        .query()
+        .window("win1", {
+          orderBy: "+b",
+          framing: ["ROWS", "UNBOUNDED PRECEDING", "UNBOUNDED FOLLOWING"],
+        })
+        .select({
+          medianCont: "PERCENTILE_CONT(0.5) OVER win1",
+        });
+      expect(results.getNextValue()).toBe(3);
+      expect(results.getNextValue()).toBe(3);
+      expect(results.getNextValue()).toBe(3);
+      expect(results.getNextValue()).toBe(3);
+    });
+  });
+
+  describe("Position Functions", () => {
+    it("LAG(b)", () => {
+      const db = new CSVDB("a,b,c\n1,2,3\n1,3,5\n1,4,7\n4,5,6");
+      const results = db
+        .query()
+        .window("win1", {
+          orderBy: "b",
+          framing: ["ROWS", "UNBOUNDED PRECEDING", "UNBOUNDED FOLLOWING"],
+        })
+        .select({
+          rowNumber: "LAG(b) OVER win1",
+        });
+
+      expect(results.getNextValue()).toBeNull();
+      expect(results.getNextValue()).toBe("2");
+      expect(results.getNextValue()).toBe("3");
+      expect(results.getNextValue()).toBe("4");
+    });
+
+    it("LEAD(c, 2)", () => {
+      const db = new CSVDB("a,b,c\n1,2,3\n1,3,5\n1,4,7\n4,5,6");
+      const results = db
+        .query()
+        .window("win1", {
+          orderBy: "b",
+          framing: ["ROWS", "UNBOUNDED PRECEDING", "UNBOUNDED FOLLOWING"],
+        })
+        .select({
+          rowNumber: "LEAD(c, 2) OVER win1",
+        });
+
+      expect(results.getNextValue()).toBe("7");
+      expect(results.getNextValue()).toBe("6");
+      expect(results.getNextValue()).toBeNull();
+      expect(results.getNextValue()).toBeNull();
+    });
+
+    it("FIRST_VALUE(b)", () => {
+      const db = new CSVDB("a,b,c\n1,2,3\n1,3,5\n1,4,7\n4,5,6");
+      const results = db
+        .query()
+        .window("win1", {
+          partitionBy: "a",
+          orderBy: "b",
+          framing: ["ROWS", "UNBOUNDED PRECEDING", "UNBOUNDED FOLLOWING"],
+        })
+        .select({
+          rowNumber: "FIRST_VALUE(b) OVER win1",
+        });
+
+      expect(results.getNextValue()).toBe("2");
+      expect(results.getNextValue()).toBe("2");
+      expect(results.getNextValue()).toBe("2");
+      expect(results.getNextValue()).toBe("5");
+    });
+
+    it("LAST_VALUE(c)", () => {
+      const db = new CSVDB("a,b,c\n1,2,3\n1,3,5\n1,4,7\n4,5,6");
+      const results = db
+        .query()
+        .window("win1", {
+          partitionBy: "a",
+          orderBy: "b",
+          framing: ["ROWS", "UNBOUNDED PRECEDING", "UNBOUNDED FOLLOWING"],
+        })
+        .select({
+          rowNumber: "LAST_VALUE(c) OVER win1",
+        });
+
+      expect(results.getNextValue()).toBe("7");
+      expect(results.getNextValue()).toBe("7");
+      expect(results.getNextValue()).toBe("7");
+      expect(results.getNextValue()).toBe("6");
+    });
+
+    it("NTH_VALUE(c, 2)", () => {
+      const db = new CSVDB("a,b,c\n1,2,3\n1,3,5\n1,4,7\n4,5,6");
+      const results = db
+        .query()
+        .window("win1", {
+          partitionBy: "a",
+          orderBy: "b",
+          framing: ["ROWS", "UNBOUNDED PRECEDING", "UNBOUNDED FOLLOWING"],
+        })
+        .select({
+          rowNumber: "NTH_VALUE(c, 2) OVER win1",
+        });
+
+      expect(results.getNextValue()).toBe("5");
+      expect(results.getNextValue()).toBe("5");
+      expect(results.getNextValue()).toBe("5");
+      expect(results.getNextValue()).toBeNull();
+    });
+  });
+
+  describe("Statistical Functions", () => {
+    it("PERCENTILE_DIST(0.25)", () => {
+      const db = new CSVDB("a,b,c\n1,2,3\n2,4,8\n1,4,7\n4,5,6");
+      const results = db
+        .query()
+        .window("win1", {
+          orderBy: "+b",
+          framing: ["ROWS", "UNBOUNDED PRECEDING", "UNBOUNDED FOLLOWING"],
+        })
+        .select({
+          rowNumber: "PERCENTILE_DIST(0.25) OVER win1",
+        });
+
+      expect(results.getNextValue()).toBe("2");
+    });
+
+    it("PERCENTILE_DIST(0.5)", () => {
+      const db = new CSVDB("a,b,c\n1,2,3\n2,4,8\n1,4,7\n4,5,6");
+      const results = db
+        .query()
+        .window("win1", {
+          orderBy: "+b",
+          framing: ["ROWS", "UNBOUNDED PRECEDING", "UNBOUNDED FOLLOWING"],
+        })
+        .select({
+          rowNumber: "PERCENTILE_DIST(0.5) OVER win1",
+        });
+
+      expect(results.getNextValue()).toBe("4");
+    });
+
+    it("PERCENTILE_DIST(0.75)", () => {
+      const db = new CSVDB("a,b,c\n1,2,3\n2,4,8\n1,4,7\n4,5,6");
+      const results = db
+        .query()
+        .window("win1", {
+          orderBy: "+b",
+          framing: ["ROWS", "UNBOUNDED PRECEDING", "UNBOUNDED FOLLOWING"],
+        })
+        .select({
+          rowNumber: "PERCENTILE_DIST(0.75) OVER win1",
+        });
+
+      expect(results.getNextValue()).toBe("4");
+    });
+
+    it("STDDEV_POP(b)", () => {
+      const db = new CSVDB("a,b,c\n1,2,3\n2,4,8\n1,4,7\n4,5,6");
+      const results = db
+        .query()
+        .window("win1", {
+          orderBy: "+b",
+          framing: ["ROWS", "UNBOUNDED PRECEDING", "UNBOUNDED FOLLOWING"],
+        })
+        .select({
+          rowNumber: "STDDEV_POP(b) OVER win1",
+        });
+
+      expect(results.getNextValue()).toBeCloseTo(0.521949407482461);
+    });
+
+    it("STDDEV_SAMP(b)", () => {
+      const db = new CSVDB("a,b,c\n1,2,3\n2,4,8\n1,4,7\n4,5,6");
+      const results = db
+        .query()
+        .window("win1", {
+          orderBy: "+b",
+          framing: ["ROWS", "UNBOUNDED PRECEDING", "UNBOUNDED FOLLOWING"],
+        })
+        .select({
+          rowNumber: "STDDEV_SAMP(b) OVER win1",
+        });
+
+      expect(results.getNextValue()).toBeCloseTo(0.6026952618267291);
+    });
+
+    it("VAR_POP(b)", () => {
+      const db = new CSVDB("a,b,c\n1,2,3\n2,4,8\n1,4,7\n4,5,6");
+      const results = db
+        .query()
+        .window("win1", {
+          orderBy: "+b",
+          framing: ["ROWS", "UNBOUNDED PRECEDING", "UNBOUNDED FOLLOWING"],
+        })
+        .select({
+          rowNumber: "VAR_POP(b) OVER win1",
+        });
+
+      expect(results.getNextValue()).toBeCloseTo(0.2724311839712921);
+    });
+
+    it("VAR_SAMP(b)", () => {
+      const db = new CSVDB("a,b,c\n1,2,3\n2,4,8\n1,4,7\n4,5,6");
+      const results = db
+        .query()
+        .window("win1", {
+          orderBy: "+b",
+          framing: ["ROWS", "UNBOUNDED PRECEDING", "UNBOUNDED FOLLOWING"],
+        })
+        .select({
+          rowNumber: "VAR_SAMP(b) OVER win1",
+        });
+
+      expect(results.getNextValue()).toBeCloseTo(0.3632415786283895);
+    });
+  });
+});
+
+describe("Windows", () => {
+  describe("orderBy", () => {
+    it("field alphabetically", () => {
+      const db = new CSVDB("a,b,c\n1,20,3\n2,4,8\n1,4,7\n4,5,6");
+      const results = db
+        .query()
+        .window("win1", {
+          orderBy: "b",
+        })
+        .select({
+          a: "LISTAGG(a) OVER win1",
+        });
+
+      expect(results.getNextValue()).toBe("1");
+      expect(results.getNextValue()).toBe("1,2");
+      expect(results.getNextValue()).toBe("1,2,1");
+      expect(results.getNextValue()).toBe("1,2,1,4");
+    });
+
+    it("field numerically", () => {
+      const db = new CSVDB("a,b,c\n1,20,3\n2,4,8\n1,4,7\n4,5,6");
+      const results = db
+        .query()
+        .window("win1", {
+          orderBy: "+b",
+        })
+        .select({
+          a: "LISTAGG(a) OVER win1",
+        });
+
+      expect(results.getNextValue()).toBe("2,1,4,1");
+      expect(results.getNextValue()).toBe("2");
+      expect(results.getNextValue()).toBe("2,1");
+      expect(results.getNextValue()).toBe("2,1,4");
+    });
+
+    it("field numerically descending", () => {
+      const db = new CSVDB("a,b,c\n1,20,3\n2,4,8\n1,4,7\n4,5,6");
+      const results = db
+        .query()
+        .window("win1", {
+          orderBy: "-b",
+        })
+        .select({
+          a: "LISTAGG(a) OVER win1",
+        });
+
+      expect(results.getNextValue()).toBe("1");
+      expect(results.getNextValue()).toBe("1,4,2");
+      expect(results.getNextValue()).toBe("1,4,2,1");
+      expect(results.getNextValue()).toBe("1,4");
+    });
+
+    it("custom function", () => {
+      const db = new CSVDB("a,b,c\n1,20,3\n2,4,8\n1,4,7\n4,5,6");
+      const results = db
+        .query()
+        .window("win1", {
+          orderBy: (rowA, rowB) => (rowA.c % 6) - (rowB.c % 6),
+        })
+        .select({
+          a: "LISTAGG(a) OVER win1",
+        });
+
+      expect(results.getNextValue()).toBe("4,1,2,1");
+      expect(results.getNextValue()).toBe("4,1,2");
+      expect(results.getNextValue()).toBe("4,1");
+      expect(results.getNextValue()).toBe("4");
+    });
+  });
+
+  describe("Framing", () => {
+    it("Default", () => {
+      const db = new CSVDB("a,b,c\n1,2,3\n2,4,8\n1,4,7\n4,5,6");
+      const results = db
+        .query()
+        .window("win1", {
+          orderBy: "+b",
+        })
+        .select({
+          a: "LISTAGG(a) OVER win1",
+        });
+
+      expect(results.getNextValue()).toBe("1");
+      expect(results.getNextValue()).toBe("1,2");
+      expect(results.getNextValue()).toBe("1,2,1");
+      expect(results.getNextValue()).toBe("1,2,1,4");
+    });
+
+    it("Explicit preceding", () => {
+      const db = new CSVDB("a,b,c\n1,2,3\n2,4,8\n1,4,7\n4,5,6");
+      const results = db
+        .query()
+        .window("win1", {
+          orderBy: "+b",
+          framing: ["ROWS", "UNBOUNDED PRECEDING", 0],
+        })
+        .select({
+          a: "LISTAGG(a) OVER win1",
+        });
+
+      expect(results.getNextValue()).toBe("1");
+      expect(results.getNextValue()).toBe("1,2");
+      expect(results.getNextValue()).toBe("1,2,1");
+      expect(results.getNextValue()).toBe("1,2,1,4");
+    });
+
+    it("Explicit following", () => {
+      const db = new CSVDB("a,b,c\n1,2,3\n2,4,8\n1,4,7\n4,5,6");
+      const results = db
+        .query()
+        .window("win1", {
+          orderBy: "+b",
+          framing: ["ROWS", 0, "UNBOUNDED FOLLOWING"],
+        })
+        .select({
+          a: "LISTAGG(a) OVER win1",
+        });
+
+      expect(results.getNextValue()).toBe("1,2,1,4");
+      expect(results.getNextValue()).toBe("2,1,4");
+      expect(results.getNextValue()).toBe("1,4");
+      expect(results.getNextValue()).toBe("4");
+    });
+
+    it("Explicit both", () => {
+      const db = new CSVDB("a,b,c\n1,2,3\n2,4,8\n1,4,7\n4,5,6");
+      const results = db
+        .query()
+        .window("win1", {
+          orderBy: "+b",
+          framing: ["ROWS", "UNBOUNDED PRECEDING", "UNBOUNDED FOLLOWING"],
+        })
+        .select({
+          a: "LISTAGG(a) OVER win1",
+        });
+      expect(results.getNextValue()).toBe("1,2,1,4");
+      expect(results.getNextValue()).toBe("1,2,1,4");
+      expect(results.getNextValue()).toBe("1,2,1,4");
+      expect(results.getNextValue()).toBe("1,2,1,4");
+    });
+  });
+
+  describe("Partition", () => {
+    it("field", () => {
+      const db = new CSVDB("a,b,c\n1,2,3\n2,4,8\n1,4,7\n4,5,6");
+      const results = db
+        .query()
+        .window("win1", {
+          partitionBy: "b",
+          orderBy: "+a",
+        })
+        .select({
+          a: "LISTAGG(a) OVER win1",
+        });
+
+      expect(results.getNextValue()).toBe("1");
+      expect(results.getNextValue()).toBe("1,2");
+      expect(results.getNextValue()).toBe("1");
+      expect(results.getNextValue()).toBe("4");
+    });
+
+    it("function", () => {
+      const db = new CSVDB("a,b,c\n1,2,3\n2,4,8\n1,4,7\n4,5,6");
+      const results = db
+        .query()
+        .window("win1", {
+          partitionBy: (row) => row.a % 2,
+          orderBy: "+b",
+        })
+        .select({
+          a: "LISTAGG(a) OVER win1",
+        });
+
+      expect(results.getNextValue()).toBe("1");
+      expect(results.getNextValue()).toBe("2");
+      expect(results.getNextValue()).toBe("1,1");
+      expect(results.getNextValue()).toBe("2,4");
     });
   });
 });
